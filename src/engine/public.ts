@@ -8,3 +8,22 @@ export { assembleMock } from './mock';
 export type { MockAssembly } from './mock';
 export { mulberry32, randomSeed, shuffle } from './rng';
 export type { Rand } from './rng';
+export {
+  addDays,
+  AGAIN_GAP,
+  buildQueue,
+  deckCounts,
+  DEFAULT_NEW_PER_DAY,
+  dueDateFor,
+  INTERVAL_DAYS,
+  isDue,
+  isLearned,
+  LEARNED_BOX,
+  localDay,
+  MAX_BOX,
+  newCardsRatedToday,
+  nextBox,
+  nextState,
+  requeueAgain,
+} from './leitner';
+export type { CardState, QueueMode, Rating } from './leitner';

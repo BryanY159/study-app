@@ -103,3 +103,11 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - Unit 200, e2e 104 passed + 13 skipped.
 
 **Step 5 complete.**
+### M6.2 Leitner scheduler — done
+- `src/engine/leitner.ts` (pure):
+  - five boxes with intervals 0 / 1 / 3 / 7 / 14 days; Got it moves up one box (max 5), Again goes to box 1; a new card counts as box 1 (Q3);
+  - **exam cap**: due no later than the day before the exam, except on the cap day itself and after the exam;
+  - local calendar days, DST-safe;
+  - daily new-card limit, counted from first reviews per local day; `buildQueue` (due-new / due / cram; cram is shuffled with the seeded RNG and doesn't change the schedule); `requeueAgain` (back after at least 3 other cards, or at the end); `deckCounts` (due / new / learned = box ≥ 4, D6).
+- **`@study/pack/engine` contract addition:** `nextState`, `buildQueue`, `requeueAgain`, `deckCounts`, the date helpers and constants, and the `CardState` / `QueueMode` / `Rating` types.
+- Unit 237 (+14): intervals, boxes, a new card, the exam cap (before, on and after the cap; no exam), the daily limit across midnight, queue order, Due only, cram determinism, re-queue positions 0, 1, 3 and last, and counts.
