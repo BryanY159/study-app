@@ -13,10 +13,15 @@ The CI leak guard (`npm run leak-guard`) catches mistakes, but **passing it does
 not make content allowed.**
 
 ## Specs, mockups and plans
-They live in the private content repo, at **`../study-app-content/docs/`**: intent,
-spec, mockups, phase plans and v1 history. When a session needs them, add that
-folder **read-only** (for example `/add-dir ../study-app-content/docs`) and read it
-there. **Nothing from it may ever be copied into this repo:** no spec text, mockup
+- **App build plans live here, in `docs/plans/`** (for example
+  `docs/plans/step-2-storage-sync.md`). They describe app code only and must stay
+  generic: no course names, terms or content.
+- **Content plans stay in the content repo**, along with the intent, spec,
+  mockups and v1 history, at **`../study-app-content/docs/`**.
+
+`.claude/settings.json` adds `../study-app-content` as a working directory and
+denies Edit/Write under it, so sessions can read it but not change it. (For
+older setups: `/add-dir ../study-app-content/docs`.) Read it there. **Nothing from it may ever be copied into this repo:** no spec text, mockup
 markup, images or sample data. Implement the behavior and write fresh, generic
 code, tests and docs.
 
