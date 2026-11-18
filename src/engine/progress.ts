@@ -90,3 +90,16 @@ export function recentSessions(progress: ProgressDoc, n = 5): { session: Session
     .filter((s) => s.score.total > 0)
     .slice(0, n);
 }
+
+/** FR-17: how many topics Home shows before "Show all topics", and how many "Drill weakest" drills. */
+export const WEAKEST_SHOWN = 5;
+export const WEAKEST_DRILLED = 3;
+
+/**
+ * The attempted topics, weakest first (topicStats' order: lowest accuracy, then most
+ * answers, then pack order), cut to `n` unless showing all.
+ */
+export function weakestTopics<T extends { total: number }>(stats: readonly T[], showAll: boolean, n = WEAKEST_SHOWN): T[] {
+  const attempted = stats.filter((t) => t.total > 0);
+  return showAll ? attempted : attempted.slice(0, n);
+}

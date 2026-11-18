@@ -36,3 +36,21 @@ test('Home layout per viewport', async ({ page }, info) => {
     await expect(page.getByTestId('recent-sessions').getByTestId('session-row').first()).toBeVisible();
   }
 });
+
+test('FR-17: "Drill weakest" is in the topics header everywhere, and on phone also a chip visible without scrolling', async ({ page }, info) => {
+  await drillFlow(page, '/');
+  await page.goto('/#/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeVisible();
+  const section = page.getByTestId('topics');
+  const action = section.getByTestId('drill-weakest');
+  await expect(action).toBeVisible();
+  expect((await action.boundingBox())!.y).toBeLessThan((await section.getByTestId('topic-row').first().boundingBox())!.y);
+  if (info.project.name === 'phone') {
+    const chip = page.getByTestId('drill-weakest-chip');
+    await expect(chip).toBeInViewport();
+    await chip.tap();
+    await expect(page).toHaveURL(/#\/drill\?topics=/);
+  } else {
+    await expect(page.getByTestId('drill-weakest-chip')).toHaveCount(0);
+  }
+});

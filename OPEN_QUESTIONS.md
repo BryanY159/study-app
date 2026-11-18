@@ -13,3 +13,9 @@ where it's used. Please review at the end of the run.
 - **Your part:** the iOS spike already covers closing the app. When you run it, also try answering a question in the real app and closing it straight away; the answer should be there when you reopen it.
 - Used in: `src/storage/IdbDataStore.ts`.
 
+## Q2. How many topics does "Drill weakest" drill?
+- **Context:** FR-17 says Home shows the **5** weakest topics by default, but not how many the action drills. v1 drilled the 3 weakest.
+- **Options:** drill the 3 weakest (as v1); drill the 5 shown; drill whatever is shown (5, or all after "Show all").
+- **Default chosen:** keep **3** (`WEAKEST_DRILLED` in `src/engine/progress.ts`). The button says how many ("Drill weakest 3 topics"), so it's never ambiguous. Changing it is a one-line edit.
+- Used in: `src/ui/screens/Dashboard.tsx`.
+

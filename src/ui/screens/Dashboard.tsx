@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { missedIds, moduleStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW } from '../../engine/progress';
+import { useMemo, useState } from 'react';
+import { missedIds, moduleStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW, WEAKEST_DRILLED, WEAKEST_SHOWN, weakestTopics } from '../../engine/progress';
 import { useApp } from '../../state/AppProvider';
 import { BackupReminder } from '../components/SyncExport';
 import { SetAsideWarning } from '../components/SetAsideWarning';
@@ -28,6 +28,7 @@ export function formatWhen(iso: string, now = new Date()): string {
 export function Dashboard() {
   const { ix, progress, flags } = useApp();
   const phone = useBreakpoint() === 'phone';
+  const [showAllTopics, setShowAllTopics] = useState(false);
   const stats = useMemo(() => {
     if (!ix) return null;
     const relevant = progress.attempts.filter((a) => a.packId === ix.pack.packId);
@@ -43,7 +44,10 @@ export function Dashboard() {
   const { pack } = ix;
   const sessions = recentSessions({ ...progress, sessions: progress.sessions.filter((s) => s.packId === pack.packId) }, 5);
   const attempted = stats.topics.filter((t) => t.total > 0);
-  const weakest = attempted.slice(0, 3).map((t) => t.topicId);
+  const weakest = attempted.slice(0, WEAKEST_DRILLED).map((t) => t.topicId);
+  const shown = weakestTopics(stats.topics, showAllTopics);
+  const weakestHref = `#/drill?topics=${weakest.join(',')}`;
+  const weakestLabel = `Drill weakest ${weakest.length === 1 ? 'topic' : `${weakest.length} topics`}`;
   const days = pack.examDate ? daysUntil(pack.examDate) : null;
   const flagCount = flags.flags.filter((f) => f.packId === pack.packId).length;
   const bp = pack.examBlueprint;
@@ -85,15 +89,30 @@ export function Dashboard() {
           </span>
         </div>
       </div>
+      {phone && weakest.length > 0 && (
+        <div className="row" data-testid="weakest-chip-row">
+          <a className="btn small" href={weakestHref} data-testid="drill-weakest-chip">
+            {weakestLabel} →
+          </a>
+        </div>
+      )}
 
       <div className="grid-main">
-        <section className="card">
-          <div className="spread" style={{ alignItems: 'baseline', marginBottom: 8 }}>
-            <h2>Accuracy by topic</h2>
-            <span className="small muted">Weakest first · last {TOPIC_WINDOW} attempts per topic</span>
+        <section className="card" data-testid="topics">
+          {/* FR-17: the action sits in the section header, above the list, on every screen size. */}
+          <div className="spread" style={{ alignItems: 'center', marginBottom: 4 }}>
+            <h2>Weakest topics</h2>
+            {weakest.length > 0 && (
+              <a className="btn small primary" href={weakestHref} data-testid="drill-weakest">
+                {weakestLabel}
+              </a>
+            )}
           </div>
+          <p className="small muted" style={{ marginBottom: 8 }}>
+            Accuracy over the last {TOPIC_WINDOW} answers per topic, weakest first
+          </p>
           {attempted.length === 0 && <p className="muted">No answers yet. Start a drill to see your weak spots here.</p>}
-          {attempted.map((t) => (
+          {shown.map((t) => (
             <div key={t.topicId} className="bar-row" data-testid="topic-row">
               <div>
                 <div style={{ fontWeight: 500 }}>{t.name}</div>
@@ -107,10 +126,10 @@ export function Dashboard() {
               <span className="pct">{t.pct}%</span>
             </div>
           ))}
-          {weakest.length > 0 && (
-            <p style={{ marginTop: 12 }}>
-              <a href={`#/drill?topics=${weakest.join(',')}`}>Drill your {weakest.length} weakest topic{weakest.length === 1 ? '' : 's'} →</a>
-            </p>
+          {attempted.length > WEAKEST_SHOWN && (
+            <button type="button" className="btn small" style={{ marginTop: 8 }} aria-expanded={showAllTopics} onClick={() => setShowAllTopics((v) => !v)}>
+              {showAllTopics ? 'Show fewer' : `Show all topics (${attempted.length})`}
+            </button>
           )}
         </section>
 

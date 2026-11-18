@@ -92,3 +92,14 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
   - UI: answer 3, open 1 by chip (read-only), a key press ignored, flag it, → to 2, back to current; still exactly 3 attempts;
   - e2e at all viewports: tap the chip (phone/tablet) or ← ← (desktop), then back.
 - Unit 195, e2e 101 passed + 13 skipped.
+### M5.2 FR-17: weakest-topics placement — done
+- The topics section is now "Weakest topics". The **Drill weakest** action is a button in the section header, above the list, at every size. It shows the **5** weakest attempted topics, with **Show all topics (n)** / **Show fewer**.
+- On phone the same action is also a chip under the quick actions, visible without scrolling. It's hidden when nothing has been answered yet.
+- `weakestTopics()` and the `WEAKEST_SHOWN` / `WEAKEST_DRILLED` constants are in `src/engine/progress.ts`. Q2 logs that the action drills 3, as in v1.
+- Tests:
+  - unit: selection (5 weakest, Show all, fewer than 5, none);
+  - UI: the action is before the list, 5 → 7 → 5, and nothing when there are no answers;
+  - e2e at all viewports: the action is above the first row; on phone the chip is in the first viewport and opens the drill.
+- Unit 200, e2e 104 passed + 13 skipped.
+
+**Step 5 complete.**
