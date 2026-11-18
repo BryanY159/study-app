@@ -14,7 +14,9 @@ not make content allowed.**
 
 ## Specs, mockups and plans
 - **App build plans live here, in `docs/plans/`** (for example
-  `docs/plans/step-2-storage-sync.md`). They describe app code only and must stay
+  `docs/plans/step-2-storage-sync.md`, `docs/plans/steps-3-6.md`). A long
+  unattended run logs progress in `PROGRESS.md` and questions (with the default
+  it chose) in `OPEN_QUESTIONS.md`, both in the repo root. They describe app code only and must stay
   generic: no course names, terms or content.
 - **Content plans stay in the content repo**, along with the intent, spec,
   mockups and v1 history, at **`../study-app-content/docs/`**.
