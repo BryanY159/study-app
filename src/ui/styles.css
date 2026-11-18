@@ -274,3 +274,13 @@ html { -webkit-text-size-adjust: 100%; }
   .confirm-table td[data-label]::before { content: attr(data-label); color: var(--muted); }
 }
 .sheet .grid-title { display: none; }
+
+/* FR-16: the question strip under the drill header */
+.qstrip { display: flex; gap: 6px; overflow-x: auto; max-width: 880px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)) 12px; scrollbar-width: thin; }
+.qchip { flex-shrink: 0; min-width: 44px; height: 44px; border-radius: 10px; font-weight: 700; font-size: 14px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); cursor: pointer; }
+.qchip.correct { background: var(--correct-tint); border-color: var(--correct); color: var(--correct-ink); }
+.qchip.incorrect { background: var(--incorrect-tint); border-color: var(--incorrect); color: var(--incorrect-ink); }
+.qchip.current { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.qchip.live:not(.current) { outline: 2px dashed var(--accent); outline-offset: 1px; }
+.qchip[disabled] { cursor: default; opacity: 0.55; }
+.banner.reviewing { background: var(--accent-tint); color: var(--text); }

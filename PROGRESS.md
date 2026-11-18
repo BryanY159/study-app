@@ -82,3 +82,13 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - Unit 190, e2e 98 passed + 13 skipped (Chromium-only or single-viewport tests in other projects).
 
 **Step 4 complete.**
+### M5.1 FR-16: reviewing earlier questions during a drill — done
+- A **question strip** under the drill header has one 44 px chip per question, colored correct / incorrect / on screen / not yet. The live question is outlined, later chips are disabled, it scrolls sideways on phone, and the chip on screen is kept in view.
+- **Previous / Next** buttons, on phone in the bottom bar. **←/→** work only once feedback is showing, so A–D stay answer keys.
+- An earlier question opens **read-only**: same feedback, no answer buttons, answer keys ignored. Flagging works. "Back to current question" returns to the live one.
+- The rules are in `src/ui/drillNav.ts` (pure); `DrillRun.viewing` is optional, so nothing else changes.
+- Tests:
+  - unit for the rules: chips, bounds, prev/next, arrows only after feedback;
+  - UI: answer 3, open 1 by chip (read-only), a key press ignored, flag it, → to 2, back to current; still exactly 3 attempts;
+  - e2e at all viewports: tap the chip (phone/tablet) or ← ← (desktop), then back.
+- Unit 195, e2e 101 passed + 13 skipped.

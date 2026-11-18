@@ -20,8 +20,11 @@ export type SaveStatus = 'saved' | 'saving' | 'error';
 export interface DrillRun {
   sessionId: string;
   questionIds: string[];
+  /** The live question: the furthest the drill has got. */
   index: number;
   answers: Record<string, string[]>;
+  /** An earlier, answered question opened read-only (FR-16); null = showing the live one. */
+  viewing?: number | null;
 }
 
 export interface AppState {

@@ -55,3 +55,37 @@ test('phone: the bottom bar stays on screen with a long question, and Next appea
   const opt = (await page.locator('.option').last().boundingBox())!;
   expect(opt.y + opt.height).toBeLessThanOrEqual((await bar.boundingBox())!.y + 1);
 });
+
+test('FR-16: look back at an earlier question from the strip, read-only, then back to the current one', async ({ page }, info) => {
+  await importPack(page, '/');
+  await page.goto('/#/drill');
+  await page.getByRole('button', { name: /Start drill/ }).click();
+  const desktop = info.project.name === 'desktop';
+  for (let i = 1; i <= 3; i++) {
+    await expect(page.getByTestId('drill-position')).toContainText(`Question ${i} of`);
+    await expect(page.getByTestId('stem')).toBeVisible();
+    await page.keyboard.press('a');
+    await expect(page.getByTestId('feedback')).toBeVisible();
+    if (i < 3) await page.keyboard.press('Enter');
+  }
+  const liveStem = await page.getByTestId('stem').textContent();
+  const strip = page.getByTestId('question-strip');
+  await expect(strip.getByRole('button', { name: /^Question 4,/ })).toBeDisabled();
+
+  if (desktop) {
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+  } else {
+    await strip.getByRole('button', { name: /^Question 1,/ }).tap();
+  }
+  await expect(page.getByTestId('reviewing')).toContainText('question 1');
+  await expect(page.getByTestId('feedback')).toBeVisible();
+  await expect(page.getByRole('radiogroup')).toHaveCount(0);
+  expect(await page.getByTestId('stem').textContent()).not.toBe(liveStem);
+
+  await page.getByRole('button', { name: 'Back to current question' }).click();
+  await expect(page.getByTestId('reviewing')).toHaveCount(0);
+  expect(await page.getByTestId('stem').textContent()).toBe(liveStem);
+  await expect(page.getByTestId('drill-position')).toContainText('Question 3 of');
+  await expect(page.getByText('correct so far')).toContainText('of 3 correct so far');
+});
