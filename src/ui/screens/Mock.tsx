@@ -384,7 +384,9 @@ function QuestionGrid({
 }) {
   return (
     <>
-      <div style={{ fontWeight: 600 }}>Questions</div>
+      <div className="grid-title" style={{ fontWeight: 600 }}>
+        Questions
+      </div>
       <div className="navgrid" data-testid="navgrid">
         {m.questionIds.map((id, i) => {
           const cls = ['navcell', m.answers[id] ? 'answered' : '', m.marked.includes(id) ? 'marked' : '', i === m.current ? 'current' : ''].join(' ');

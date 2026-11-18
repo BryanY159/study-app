@@ -263,3 +263,14 @@ html { -webkit-text-size-adjust: 100%; }
 .sheet .navcell, .navgrid .navcell { min-height: 44px; }
 .slide-up { animation: slide-up 0.18s ease-out; }
 @keyframes slide-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+
+/* Phone: tables become stacked rows, each cell labelled. */
+@media (max-width: 639px) {
+  .confirm-table thead { display: none; }
+  .confirm-table, .confirm-table tbody, .confirm-table tr, .confirm-table td { display: block; width: 100%; }
+  .confirm-table tr { padding: 8px 0; border-bottom: 1px solid var(--border-strong); }
+  .confirm-table td { border: none; padding: 2px 0; display: flex; justify-content: space-between; }
+  .confirm-table td.row-head { font-weight: 600; }
+  .confirm-table td[data-label]::before { content: attr(data-label); color: var(--muted); }
+}
+.sheet .grid-title { display: none; }

@@ -116,6 +116,27 @@ Vite + React, built by `vite-plugin-singlefile` into one self-contained
 straight from disk (`file://`) was retired in step 3 and is no longer tested. `public/` (the iOS storage spike page) is copied
 into `dist/` as is.
 
+## Layout and theming
+
+- **Breakpoints:**
+  - phone < 640 px;
+  - tablet 640–1023 px;
+  - laptop ≥ 1024 px, which keeps the v1 layout.
+
+  Most of it is CSS media queries. `useBreakpoint()` (`src/ui/useBreakpoint.ts`) is
+  used only where the structure differs: navigation, and the run screens' bars.
+- **Phone:**
+  - a bottom tab bar (Home · Drill · Mock · More);
+  - run screens get a sticky top bar and a bottom action bar;
+  - the mock exam's question grid is a slide-up sheet, and tables become stacked rows;
+  - text is 16 px, touch targets are ≥ 44 px, and safe areas use
+    `env(safe-area-inset-*)` and `dvh` units.
+- **Tablet:** the top nav, two-column Home, and the mock grid as a side column.
+- **Tokens:** every color is in `src/ui/tokens.css`. Dark mode is a token swap under
+  `prefers-color-scheme: dark`. `tokens.test.ts` checks WCAG AA contrast for the
+  text pairings in both themes and that no hex color appears anywhere else.
+- **Reduced motion** turns transitions and animations off. Keyboard hints show only on laptop.
+
 ## PWA (installable, offline)
 
 - **Manifest** (`src/pwa/manifest.ts`, injected by `vite-plugin-pwa`):

@@ -148,14 +148,14 @@ export function useSyncImport(onDone: (r: ImportResult) => void) {
             </thead>
             <tbody>
               <tr data-testid="restore-current">
-                <td>This device now</td>
-                <td>{here.attempts}</td>
-                <td>{here.flags}</td>
+                <td className="row-head">This device now</td>
+                <td data-label="Answers">{here.attempts}</td>
+                <td data-label="Flags">{here.flags}</td>
               </tr>
               <tr data-testid="restore-backup">
-                <td>The file</td>
-                <td>{there.attempts}</td>
-                <td>{there.flags}</td>
+                <td className="row-head">The file</td>
+                <td data-label="Answers">{there.attempts}</td>
+                <td data-label="Flags">{there.flags}</td>
               </tr>
             </tbody>
           </table>

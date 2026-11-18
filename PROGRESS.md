@@ -74,3 +74,11 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
   - tablet/laptop: the grid sits beside the question.
 - **Fix: IndexedDB writes now ask for `durability: 'strict'`.** On WebKit the existing "answer, reload, exam resumes" test failed about 2 in 5 runs under load: a save that had reported success was gone after a reload. Strict durability makes "complete" wait until the data is on disk, which also matters when the app is closed right after answering on a phone. Now 3 full runs plus 20 repeats of that test are green. A unit test checks every write transaction is strict. Logged in `OPEN_QUESTIONS.md` (Q1) to confirm on a real iPhone.
 - Unit 190, e2e 94 per run (3 runs).
+### M4.5 Other screens — done
+- On phone the confirm table (Replace) becomes stacked, labelled rows (`data-label`). Flags, mock results, Data, Install help and Welcome are one column on phone, with no hover-only actions.
+- The phone sheet no longer repeats the "Questions" title. Visual check in the browser pane at phone size, light and dark: Home, and the mock grid sheet.
+- `architecture.md`: a new "Layout and theming" section.
+- e2e `screens-layout.spec.ts`: mock results and flags have no sideways scroll at any size and their actions are visible buttons; on phone, the Replace confirmation shows stacked rows with labels.
+- Unit 190, e2e 98 passed + 10 skipped.
+
+**Step 4 complete.**
