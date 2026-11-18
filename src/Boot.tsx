@@ -1,69 +1,59 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Pack } from './pack/schema';
 import { AppProvider } from './state/AppProvider';
-import type { DataStore } from './storage/DataStore';
-import { FolderConnection, type FolderDeps } from './storage/folderConnection';
-import { MirroredDataStore, type MirrorOptions } from './storage/MirroredDataStore';
+import type { ShareEnv } from './storage/backup';
+import type { DataStore, MetaStore } from './storage/DataStore';
+import { migrateLegacy } from './storage/legacy';
+import type { StorageManagerLike } from './storage/persist';
+import { SafeStore } from './storage/SafeStore';
 import { TabLock, type LockManagerLike } from './storage/tabLock';
 import { App } from './ui/App';
 import { ErrorBoundary, StartupError } from './ui/screens/StartupError';
 
 // Startup, in order, with the page already showing something at each step:
-//   1. open browser storage (fails if the browser blocks it → error screen)
+//   1. open the IndexedDB store (fails if the browser blocks it → error screen)
 //   2. take the one-tab lock (another tab has it → "already open" screen)
-//   3. connect the data folder, with a timeout (slow or stuck → carry on in the browser)
+//   3. move pre-v1.5 localStorage data into IndexedDB, once (a failure is logged and retried next start)
 //   4. AppProvider loads the data (fails or times out → error screen)
 
 export interface BootDeps {
   bundledPacks: Pack[];
-  makeBrowserStore: () => DataStore;
-  folderDeps: () => FolderDeps;
+  openStore: () => Promise<DataStore & MetaStore>;
+  /** Where v1.4 kept progress and flags; null if blocked. */
+  legacyStorage: () => Storage | null;
   locks: LockManagerLike | null;
-  folderTimeoutMs?: number;
-  mirrorOptions?: MirrorOptions;
+  storageManager?: StorageManagerLike | null;
+  shareEnv?: ShareEnv;
+  now?: () => Date;
   /** Tests pass these to skip IndexedDB. */
   loadImported?: () => Promise<Pack[]>;
   saveImported?: (p: Pack) => Promise<void>;
 }
 
-type Phase =
-  | { kind: 'starting' }
-  | { kind: 'other-tab' }
-  | { kind: 'ready'; store: MirroredDataStore; folder: FolderConnection; run: number }
-  | { kind: 'error'; error: unknown };
+type Phase = { kind: 'starting' } | { kind: 'other-tab' } | { kind: 'ready'; store: SafeStore; meta: MetaStore; run: number } | { kind: 'error'; error: unknown };
 
 export function Boot({ deps }: { deps: BootDeps }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'starting' });
   const lock = useRef(new TabLock(deps.locks));
-  const current = useRef<MirroredDataStore | null>(null);
+  const current = useRef<SafeStore | null>(null);
   const runs = useRef(0);
 
   const start = useCallback(
     async (steal: boolean) => {
       setPhase({ kind: 'starting' });
       try {
-        const browser = deps.makeBrowserStore();
+        const raw = await deps.openStore();
         const got = await lock.current.acquire(steal, () => {
           // Another tab took over: stop saving here.
-          current.current?.detach();
+          current.current?.close();
           current.current = null;
           setPhase({ kind: 'other-tab' });
         });
         if (!got) return setPhase({ kind: 'other-tab' });
-        const store = new MirroredDataStore(browser, deps.mirrorOptions);
-        const folder = new FolderConnection(store, deps.folderDeps());
+        const store = new SafeStore(raw);
         current.current = store;
-        // Connect silently if the permission is still granted. If that hangs, start without it.
-        const ms = deps.folderTimeoutMs ?? 8000;
-        const finished = await Promise.race([
-          folder
-            .init()
-            .catch((e) => console.error('Data folder init failed', e))
-            .then(() => true),
-          new Promise<boolean>((r) => setTimeout(() => r(false), ms)),
-        ]);
-        if (!finished) folder.markTimedOut();
-        setPhase({ kind: 'ready', store, folder, run: ++runs.current });
+        await migrateLegacy(store, raw, deps.legacyStorage(), deps.now).catch((e) => console.error('Moving the older saved data failed; retrying next start', e));
+        setPhase({ kind: 'ready', store, meta: raw, run: ++runs.current });
       } catch (e) {
         setPhase({ kind: 'error', error: e });
       }
@@ -77,19 +67,21 @@ export function Boot({ deps }: { deps: BootDeps }) {
     return () => l.releaseLock();
   }, [start]);
 
-  // Give pending folder writes a chance to run before the tab closes. The browser copy is already saved either way.
-  useEffect(() => {
-    const onHide = () => void current.current?.flush();
-    window.addEventListener('pagehide', onHide);
-    return () => window.removeEventListener('pagehide', onHide);
-  }, []);
-
   if (phase.kind === 'error') return <StartupError title="The app couldn't start" error={phase.error} onRetry={() => void start(false)} />;
   if (phase.kind === 'other-tab') return <OtherTab onTakeOver={() => void start(true)} />;
   if (phase.kind === 'starting') return <div className="empty">Starting…</div>;
   return (
     <ErrorBoundary key={phase.run}>
-      <AppProvider store={phase.store} folder={phase.folder} bundledPacks={deps.bundledPacks} loadImported={deps.loadImported} saveImported={deps.saveImported}>
+      <AppProvider
+        store={phase.store}
+        meta={phase.meta}
+        bundledPacks={deps.bundledPacks}
+        loadImported={deps.loadImported}
+        saveImported={deps.saveImported}
+        storageManager={deps.storageManager}
+        shareEnv={deps.shareEnv}
+        now={deps.now}
+      >
         <App />
       </AppProvider>
     </ErrorBoundary>

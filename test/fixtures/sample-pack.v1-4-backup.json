@@ -1,0 +1,203 @@
+{
+  "kind": "studyapp-backup",
+  "createdAt": "2026-11-10T18:00:00.000Z",
+  "progress": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-11-10T17:30:00.000Z",
+    "restoredAt": "",
+    "attempts": [
+      {
+        "questionId": "q-alpha-0001",
+        "packId": "sample-orrin",
+        "sessionId": "drill-mbq1-a1",
+        "mode": "drill",
+        "chosen": [
+          "A"
+        ],
+        "correct": true,
+        "at": "2026-11-09T10:00:10.000Z",
+        "ms": 4250
+      },
+      {
+        "questionId": "q-alpha-0002",
+        "packId": "sample-orrin",
+        "sessionId": "drill-mbq1-a1",
+        "mode": "drill",
+        "chosen": [
+          "A"
+        ],
+        "correct": false,
+        "at": "2026-11-09T10:00:40.000Z",
+        "ms": 4500
+      },
+      {
+        "id": "att-3",
+        "questionId": "q-beta-0001",
+        "packId": "sample-orrin",
+        "sessionId": "drill-mbq1-a1",
+        "mode": "drill",
+        "chosen": [
+          "A"
+        ],
+        "correct": true,
+        "at": "2026-11-09T10:01:15.000Z",
+        "ms": 4750
+      },
+      {
+        "id": "att-4",
+        "questionId": "q-alpha-0003",
+        "packId": "sample-orrin",
+        "sessionId": "mock-mbq2-b2",
+        "mode": "mock",
+        "chosen": [
+          "C"
+        ],
+        "correct": true,
+        "at": "2026-11-10T17:20:00.000Z",
+        "ms": 5000
+      },
+      {
+        "id": "att-5",
+        "questionId": "q-alpha-0004",
+        "packId": "sample-orrin",
+        "sessionId": "mock-mbq2-b2",
+        "mode": "mock",
+        "chosen": [
+          "A"
+        ],
+        "correct": false,
+        "at": "2026-11-10T17:20:00.000Z",
+        "ms": 5250
+      },
+      {
+        "id": "att-6",
+        "questionId": "q-beta-0003",
+        "packId": "sample-orrin",
+        "sessionId": "mock-mbq2-b2",
+        "mode": "mock",
+        "chosen": [
+          "D"
+        ],
+        "correct": true,
+        "at": "2026-11-10T17:20:00.000Z",
+        "ms": 5500
+      },
+      {
+        "id": "att-7",
+        "questionId": "q-beta-0004",
+        "packId": "sample-orrin",
+        "sessionId": "mock-mbq2-b2",
+        "mode": "mock",
+        "chosen": [],
+        "correct": false,
+        "at": "2026-11-10T17:20:00.000Z",
+        "ms": 5750
+      },
+      {
+        "id": "att-8",
+        "questionId": "q-gamma-0001",
+        "packId": "sample-orrin",
+        "sessionId": "mock-mbq2-b2",
+        "mode": "mock",
+        "chosen": [
+          "B"
+        ],
+        "correct": true,
+        "at": "2026-11-10T17:20:00.000Z",
+        "ms": 6000
+      },
+      {
+        "id": "att-9",
+        "questionId": "q-gamma-0002",
+        "packId": "sample-orrin",
+        "sessionId": "mock-mbq2-b2",
+        "mode": "mock",
+        "chosen": [
+          "A"
+        ],
+        "correct": true,
+        "at": "2026-11-10T17:20:00.000Z",
+        "ms": 6250
+      }
+    ],
+    "sessions": [
+      {
+        "id": "drill-mbq1-a1",
+        "mode": "drill",
+        "packId": "sample-orrin",
+        "label": "Drill · Glowroot anatomy",
+        "startedAt": "2026-11-09T10:00:00.000Z",
+        "endedAt": "2026-11-09T10:01:30.000Z",
+        "questionIds": [
+          "q-alpha-0001",
+          "q-alpha-0002",
+          "q-beta-0001"
+        ],
+        "marked": [],
+        "timeLimitMinutes": null
+      },
+      {
+        "id": "mock-mbq2-b2",
+        "mode": "mock",
+        "packId": "sample-orrin",
+        "label": "Mock exam",
+        "startedAt": "2026-11-10T17:00:00.000Z",
+        "endedAt": "2026-11-10T17:20:00.000Z",
+        "questionIds": [
+          "q-alpha-0003",
+          "q-alpha-0004",
+          "q-beta-0003",
+          "q-beta-0004",
+          "q-gamma-0001",
+          "q-gamma-0002"
+        ],
+        "marked": [
+          "q-beta-0004"
+        ],
+        "timeLimitMinutes": 30
+      }
+    ],
+    "activeMock": null,
+    "settings": {
+      "hideFlagged": false,
+      "activePackId": "sample-orrin"
+    }
+  },
+  "flags": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-11-10T17:25:00.000Z",
+    "restoredAt": "",
+    "flags": [
+      {
+        "id": "flag-mbq3-c3",
+        "packId": "sample-orrin",
+        "packVersion": 1,
+        "questionId": "q-beta-0002",
+        "reason": "explanation-wrong",
+        "comment": "Option C explanation names the wrong vine.",
+        "mode": "drill",
+        "source": "user",
+        "createdAt": "2026-11-09T10:00:55.000Z",
+        "updatedAt": "2026-11-09T10:00:55.000Z"
+      },
+      {
+        "id": "preflag-sample-orrin-q-gamma-0004",
+        "packId": "sample-orrin",
+        "packVersion": 1,
+        "questionId": "q-gamma-0004",
+        "reason": "unclear",
+        "comment": "Asked in class: pale yellow is right.",
+        "mode": "review",
+        "source": "preflag",
+        "createdAt": "2026-11-08T09:00:00.000Z",
+        "updatedAt": "2026-11-10T17:25:00.000Z"
+      }
+    ],
+    "removed": [
+      {
+        "id": "flag-mbq0-z0",
+        "removedAt": "2026-11-09T11:00:00.000Z"
+      }
+    ]
+  }
+}

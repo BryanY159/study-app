@@ -1,14 +1,14 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { makePack } from '../../test/makePack';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { attempt, makePack } from '../../test/makePack';
 import { indexPack } from '../engine/packIndex';
 import type { Pack } from '../pack/schema';
 import { AppProvider } from '../state/AppProvider';
 import { MemoryDataStore } from '../storage/DataStore';
-import { FolderConnection, type FolderDeps } from '../storage/folderConnection';
-import { MirroredDataStore } from '../storage/MirroredDataStore';
-import { FakeDir } from '../../test/fakeFs';
-import { emptyProgress, type ProgressDoc } from '../storage/docs';
+import type { ShareEnv } from '../storage/backup';
+import { emptyFlags, emptyProgress, type ProgressDoc } from '../storage/docs';
+import { SafeStore } from '../storage/SafeStore';
+import { makeSyncFile } from '../storage/syncFile';
 import { App } from './App';
 import { submitMock } from './screens/Mock';
 
@@ -169,124 +169,165 @@ describe('unconfirmed questions', () => {
   });
 });
 
-describe('data folder', () => {
-  const folderDeps = (dir: FakeDir | undefined, flags = new Map<string, boolean>()): FolderDeps => {
-    let saved = dir;
-    return {
-      supported: true,
-      pickFolder: async () => (saved = dir ?? new FakeDir()),
-      loadHandle: async () => saved,
-      saveHandle: async (h) => void (saved = h as FakeDir),
-      clearHandle: async () => void (saved = undefined),
-      getFlag: (k) => flags.get(k) ?? false,
-      setFlag: (k, on) => void flags.set(k, on),
-    };
-  };
+describe('saving on this device (no data folder)', () => {
+  it('first run goes straight to the app, saving on this device', async () => {
+    renderApp(makePack({ a: 3 }));
+    expect(await screen.findByText('Welcome back')).toBeInTheDocument();
+    expect(screen.queryByText(/data folder/i)).toBeNull();
+    expect(screen.getByTestId('save-status').textContent).toBe('Saved on this device');
+  });
 
-  async function renderWithFolder(dir: FakeDir | undefined, hash = '#/', pack = makePack({ a: 3 })) {
-    const mirror = new MirroredDataStore(new MemoryDataStore(), { retryDelays: [1] });
-    const folder = new FolderConnection(mirror, folderDeps(dir));
-    await folder.init();
-    window.location.hash = hash;
+  it('I-2: data saved by a newer app version shows an update message and is left untouched', async () => {
+    const store = new MemoryDataStore();
+    const future = JSON.stringify({ schemaVersion: 2, updatedAt: '2026-12-01T00:00:00Z' });
+    store.docs.set('progress', future);
+    window.location.hash = '#/drill';
     render(
-      <AppProvider store={mirror} bundledPacks={[pack]} loadImported={noImports} saveImported={noSave} folder={folder}>
+      <AppProvider store={new SafeStore(store)} bundledPacks={[makePack({ a: 3 })]} loadImported={noImports} saveImported={noSave}>
         <App />
       </AppProvider>,
     );
-    return { mirror, folder };
-  }
-
-  it('first run asks for the folder; "Skip for now" keeps browser-only saving', async () => {
-    await renderWithFolder(undefined);
-    expect(await screen.findByTestId('connect-folder')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
-    expect(await screen.findByText('Welcome back')).toBeInTheDocument();
-    expect(screen.getByTestId('save-status').textContent).toBe('Saved in browser');
-  });
-
-  it('connecting from the first-run screen saves to the folder and offers a backup import once', async () => {
-    const dir = new FakeDir();
-    const { folder } = await renderWithFolder(undefined);
-    (folder as unknown as { deps: FolderDeps }).deps.pickFolder = async () => dir;
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose data folder' }));
-    expect(await screen.findByTestId('backup-offer')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId('save-status').textContent).toBe('Saved to data folder'));
-    fireEvent.click(screen.getByRole('button', { name: 'No thanks' }));
-    await waitFor(() => expect(screen.queryByTestId('backup-offer')).toBeNull());
-  });
-
-  it('C-1: a cleared browser connecting to a folder that has flags keeps all of them', async () => {
-    const pack = makePack({ a: 3 });
-    pack.questions[2] = { ...pack.questions[2], status: 'unconfirmed', preflag: { reason: 'answer-wrong', note: 'Check with the instructor' } };
-    const preflagId = 'preflag-test-pack-q-a-0003';
-    const dir = new FakeDir();
-    const base = { packId: 'test-pack', packVersion: 1, mode: 'review', createdAt: '2026-11-01T00:00:00.000Z' };
-    const saved = [
-      { ...base, id: 'flag-1', questionId: 'q-a-0001', reason: 'answer-wrong', comment: 'B is right', source: 'user', updatedAt: '2026-11-02T00:00:00.000Z' },
-      { ...base, id: 'flag-2', questionId: 'q-a-0002', reason: 'typo', comment: '', source: 'user', updatedAt: '2026-11-02T00:00:00.000Z' },
-      { ...base, id: preflagId, questionId: 'q-a-0003', reason: 'answer-wrong', comment: 'TA says A', source: 'preflag', updatedAt: '2026-11-03T00:00:00.000Z' },
-    ];
-    dir.files.set('flags.json', JSON.stringify({ schemaVersion: 1, updatedAt: '2026-11-03T00:00:00.000Z', flags: saved }));
-
-    // Fresh browser: no saved handle, so the first-run screen shows (and the app has already seeded the pre-flag).
-    const { folder, mirror } = await renderWithFolder(undefined, '#/', pack);
-    (folder as unknown as { deps: FolderDeps }).deps.pickFolder = async () => dir;
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose data folder' }));
-    await screen.findByTestId('backup-offer');
-    await mirror.flush();
-
-    const inFolder = dir.json('flags.json').flags as { id: string; comment: string }[];
-    expect(inFolder.map((f) => f.id).sort()).toEqual(['flag-1', 'flag-2', preflagId]);
-    expect(inFolder.find((f) => f.id === preflagId)!.comment).toBe('TA says A');
-    window.location.hash = '#/flags';
-    expect(await screen.findByText(/B is right/)).toBeInTheDocument();
-    expect(screen.getByText(/TA says A/)).toBeInTheDocument();
-  });
-
-  it('I-2: a folder saved by a newer app version opens browser-only with an update message, and is left untouched', async () => {
-    const dir = new FakeDir();
-    const future = JSON.stringify({ schemaVersion: 2, updatedAt: '2026-12-01T00:00:00Z' });
-    dir.files.set('progress.json', future);
-    await renderWithFolder(dir, '#/drill');
-    expect((await screen.findByTestId('newer-version')).textContent).toMatch(/Your data was saved by a newer version of this app; update index.html/);
-    expect(screen.getByTestId('save-status').textContent).toBe('Saved in browser only — update the app');
+    expect((await screen.findByTestId('newer-version')).textContent).toMatch(/newer version of this app/);
     fireEvent.click(await screen.findByRole('button', { name: /Start drill/ }));
     await screen.findByTestId('drill-position');
     fireEvent.click(screen.getByRole('button', { name: /End drill/ }));
     await waitFor(() => expect(screen.getByText('Welcome back')).toBeInTheDocument());
-    expect(dir.files.get('progress.json')).toBe(future);
-    expect(dir.writes).toBe(0);
+    expect(store.docs.get('progress')).toBe(future);
+  });
+});
+
+describe('sync & backup', () => {
+  const NOW = new Date('2026-11-17T12:00:00.000Z');
+  let downloads: { name: string; text: Promise<string> }[] = [];
+  beforeEach(() => {
+    downloads = [];
+    let lastBlob: Blob | null = null;
+    URL.createObjectURL = vi.fn((b: Blob) => ((lastBlob = b), 'blob:x'));
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      if (this.download && lastBlob) downloads.push({ name: this.download, text: lastBlob.text() });
+    });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const desktop: ShareEnv = { touch: false };
+  function renderSync(store = new MemoryDataStore(), hash = '#/data', extra: Partial<Parameters<typeof AppProvider>[0]> = {}) {
+    window.location.hash = hash;
+    render(
+      <AppProvider store={store} meta={store} bundledPacks={[makePack({ a: 3 })]} loadImported={noImports} saveImported={noSave} shareEnv={desktop} now={() => NOW} {...extra}>
+        <App />
+      </AppProvider>,
+    );
+    return store;
+  }
+  const withAnswers = async (ids: string[], store = new MemoryDataStore()) => {
+    await store.write('progress', { ...emptyProgress(), updatedAt: '2026-11-10T00:00:00.000Z', attempts: ids.map((id) => ({ ...attempt('q-a-0001', true), id })) });
+    return store;
+  };
+  const syncFileOf = (ids: string[], device = 'Laptop') =>
+    new File([JSON.stringify(makeSyncFile({ ...emptyProgress(), attempts: ids.map((id) => ({ ...attempt('q-a-0002', true), id })) }, emptyFlags(), { device, now: NOW }))], 'sync.json');
+
+  it('first export asks for a device name; the name goes into the file and is never part of the docs', async () => {
+    const store = await withAnswers(['a1']);
+    renderSync(store);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export sync file' }));
+    const prompt = await screen.findByTestId('label-prompt');
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Phone' }));
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Save name and export' }));
+    await waitFor(() => expect(downloads.map((d) => d.name)).toEqual(['study-sync-phone-2026-11-17.json']));
+    const file = JSON.parse(await downloads[0].text);
+    expect(file).toMatchObject({ kind: 'studyapp-sync', device: 'Phone' });
+    expect(file.progress.attempts).toHaveLength(1);
+    await waitFor(() => expect(store.meta).toMatchObject({ deviceLabel: 'Phone', lastExportAt: NOW.toISOString() }));
+    expect(store.docs.get('progress')).not.toContain('Phone');
+    expect(screen.getByTestId('device-label').textContent).toMatch(/This device: Phone/);
+    expect(screen.getByTestId('data-message').textContent).toMatch(/Saved study-sync-phone-2026-11-17\.json/);
+
+    // Second export: no prompt.
+    fireEvent.click(screen.getByRole('button', { name: 'Export sync file' }));
+    await waitFor(() => expect(downloads).toHaveLength(2));
+    expect(screen.queryByTestId('label-prompt')).toBeNull();
   });
 
-  it('shows "Reconnect data folder" when permission is "prompt"; one click reconnects and syncs', async () => {
-    const dir = new FakeDir();
-    dir.permission = 'prompt';
-    const { mirror } = await renderWithFolder(dir, '#/drill');
-    expect((await screen.findByTestId('save-status')).textContent).toBe('Saved in browser — reconnect folder');
-
-    // Answer while disconnected: saved to the browser only.
-    fireEvent.click(await screen.findByRole('button', { name: /Start drill/ }));
-    await screen.findByTestId('drill-position');
-    fireEvent.click(screen.getByRole('button', { name: /End drill/ }));
-    expect(dir.files.size).toBe(0);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Reconnect data folder' }));
-    await waitFor(() => expect(screen.getByTestId('save-status').textContent).toBe('Saved to data folder'));
-    await mirror.flush();
-    expect(dir.json('progress.json').sessions).toHaveLength(1);
+  it('the device can be renamed on the Data page', async () => {
+    const store = renderSync();
+    fireEvent.click(await screen.findByRole('button', { name: 'Name this device' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Device name' }), { target: { value: '  Old   iPad ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(store.meta.deviceLabel).toBe('Old iPad'));
   });
 
-  it('shows "Save failed" while folder writes are failing, then recovers', async () => {
-    const dir = new FakeDir();
-    const { mirror } = await renderWithFolder(dir, '#/drill');
-    dir.failWrites = 1000;
-    fireEvent.click(await screen.findByRole('button', { name: /Start drill/ }));
-    await screen.findByTestId('drill-position');
-    fireEvent.click(screen.getByRole('button', { name: /End drill/ }));
-    await waitFor(() => expect(screen.getByTestId('save-status').textContent).toMatch(/^Save failed/));
-    dir.failWrites = 0;
-    await mirror.flush();
-    await waitFor(() => expect(screen.getByTestId('save-status').textContent).toBe('Saved to data folder'));
-    expect(dir.json('progress.json').sessions).toHaveLength(1);
+  it('import: Merge is preselected, the preview counts what will be added, Merge adds it; the same file again adds nothing', async () => {
+    const store = await withAnswers(['a1', 'a2']);
+    renderSync(store);
+    fireEvent.change(await screen.findByTestId('sync-input'), { target: { files: [syncFileOf(['l1', 'l2', 'l3'])] } });
+    const panel = await screen.findByTestId('sync-import');
+    expect(within(panel).getByRole('radio', { name: /Merge/ })).toBeChecked();
+    expect(within(panel).getByTestId('sync-from').textContent).toMatch(/“Laptop”/);
+    expect(within(panel).getByTestId('merge-preview').textContent).toMatch(/\+3 answers/);
+    fireEvent.click(within(panel).getByRole('button', { name: 'Merge' }));
+    await waitFor(async () => expect(((await store.read('progress')) as ProgressDoc).attempts.map((a) => a.id).sort()).toEqual(['a1', 'a2', 'l1', 'l2', 'l3']));
+    expect(screen.getByTestId('data-message').textContent).toMatch(/Merged/);
+
+    fireEvent.change(screen.getByTestId('sync-input'), { target: { files: [syncFileOf(['l1', 'l2', 'l3'])] } });
+    expect((await screen.findByTestId('merge-preview')).textContent).toMatch(/nothing this device doesn't already have/);
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    await waitFor(() => expect(screen.queryByTestId('sync-import')).toBeNull());
+    expect(((await store.read('progress')) as ProgressDoc).attempts).toHaveLength(5);
+  });
+
+  it('import is blocked while a mock exam is in progress', async () => {
+    const store = new MemoryDataStore();
+    const startedAt = NOW.toISOString();
+    await store.write('progress', {
+      ...emptyProgress(),
+      sessions: [{ id: 'mock-1', mode: 'mock', packId: 'test-pack', label: 'Mock exam', startedAt, endedAt: null, questionIds: ['q-a-0001'], marked: [], timeLimitMinutes: null }],
+      activeMock: { sessionId: 'mock-1', packId: 'test-pack', questionIds: ['q-a-0001'], answers: {}, marked: [], startedAt, timeLimitMinutes: null, current: 0, warnings: [] },
+    });
+    renderSync(store);
+    fireEvent.change(await screen.findByTestId('sync-input'), { target: { files: [syncFileOf(['l1'])] } });
+    expect((await screen.findByTestId('data-message')).textContent).toMatch(/mock exam is in progress/);
+    expect(screen.queryByTestId('sync-import')).toBeNull();
+  });
+
+  it('a file from a newer app version is refused and nothing changes', async () => {
+    const store = await withAnswers(['a1']);
+    renderSync(store);
+    const future = new File([JSON.stringify({ ...makeSyncFile(emptyProgress(), emptyFlags(), { device: '' }), formatVersion: 3 })], 'f.json');
+    fireEvent.change(await screen.findByTestId('sync-input'), { target: { files: [future] } });
+    expect((await screen.findByTestId('data-message')).textContent).toMatch(/newer version of the app/);
+    expect(((await store.read('progress')) as ProgressDoc).attempts).toHaveLength(1);
+  });
+
+  it('shows whether the browser keeps this data (persist)', async () => {
+    renderSync(new MemoryDataStore(), '#/data', { storageManager: { persisted: async () => false, persist: async () => true } });
+    await waitFor(() => expect(screen.getByTestId('storage-persistence').textContent).toMatch(/Storage: persistent/));
+    cleanup();
+    renderSync(new MemoryDataStore(), '#/data', { storageManager: { persisted: async () => false, persist: async () => false } });
+    await waitFor(() => expect(screen.getByTestId('storage-persistence').textContent).toMatch(/may clear this data/));
+  });
+
+  it('reminder on Home: shown 4 days after the last export; "Not today" hides it; Export now clears it', async () => {
+    const store = await withAnswers(['a1']);
+    store.meta = { deviceLabel: 'Laptop', lastExportAt: new Date(NOW.getTime() - 4 * 86_400_000).toISOString() };
+    renderSync(store, '#/');
+    expect((await screen.findByTestId('backup-reminder')).textContent).toMatch(/4 days ago/);
+    fireEvent.click(screen.getByRole('button', { name: 'Not today' }));
+    await waitFor(() => expect(screen.queryByTestId('backup-reminder')).toBeNull());
+    expect(store.meta.reminderSnoozedUntil).toBe(new Date(NOW.getTime() + 86_400_000).toISOString());
+
+    cleanup();
+    store.meta = { deviceLabel: 'Laptop' };
+    renderSync(store, '#/');
+    expect((await screen.findByTestId('backup-reminder')).textContent).toMatch(/haven't exported/);
+    fireEvent.click(screen.getByRole('button', { name: 'Export now' }));
+    await waitFor(() => expect(screen.queryByTestId('backup-reminder')).toBeNull());
+    expect(downloads.map((d) => d.name)).toEqual(['study-sync-laptop-2026-11-17.json']);
+  });
+
+  it('no reminder before any answer is saved', async () => {
+    renderSync(new MemoryDataStore(), '#/');
+    await screen.findByText('Welcome back');
+    expect(screen.queryByTestId('backup-reminder')).toBeNull();
   });
 });

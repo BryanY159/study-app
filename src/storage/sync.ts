@@ -87,7 +87,7 @@ export function mergeFlags(x: FlagsDoc, y: FlagsDoc): FlagsDoc {
   return { ...newer, restoredAt, flags: kept, removed: [...removed.values()] };
 }
 
-/** Validates and merges the two persisted docs. MirroredDataStore uses it on every read and write. */
+/** Validates and merges the two persisted docs. SafeStore uses it on every read and write. */
 export interface DocCodec {
   /** The doc if it's valid, else why not. */
   parse(doc: DocName, raw: unknown): { ok: true; value: unknown } | { ok: false; reason: string; newerVersion?: boolean };
@@ -108,3 +108,51 @@ export const docCodec: DocCodec = {
 };
 
 export const sameDoc = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+// --- Sync import (a file from ANOTHER device) ---------------------------------
+// Same ID-based merge as above, with two deliberate differences (plan D2):
+//   1. restoredAt is not applied across devices. It exists so an older copy of
+//      THIS device's data can't undo a restore; applied to another device's file
+//      it would silently drop that device's (or this one's) older answers.
+//      Both sides are merged in full, and this device keeps its own restoredAt.
+//   2. Device-local fields stay local: settings and the exam in progress always
+//      come from this device, even if the file is newer.
+// Tombstones still apply: a flag removed on one device stays removed.
+// Pure and idempotent: merging the same file twice gives the same docs.
+
+export function mergeProgressForSync(local: ProgressDoc, incoming: ProgressDoc): ProgressDoc {
+  const merged = mergeProgress({ ...local, restoredAt: '' }, { ...incoming, restoredAt: '' });
+  return { ...merged, schemaVersion: local.schemaVersion, updatedAt: local.updatedAt, restoredAt: local.restoredAt, settings: local.settings, activeMock: local.activeMock };
+}
+
+export function mergeFlagsForSync(local: FlagsDoc, incoming: FlagsDoc): FlagsDoc {
+  const merged = mergeFlags({ ...local, restoredAt: '' }, { ...incoming, restoredAt: '' });
+  return { ...merged, schemaVersion: local.schemaVersion, updatedAt: local.updatedAt, restoredAt: local.restoredAt };
+}
+
+export interface MergePreview {
+  answers: number;
+  sessions: number;
+  flagsAdded: number;
+  flagsUpdated: number;
+  flagsRemoved: number;
+}
+
+export const nothingNew = (p: MergePreview): boolean => Object.values(p).every((n) => n === 0);
+
+/** What a sync Merge would change on this device, worked out before anything is written. */
+export function previewMerge(local: { progress: ProgressDoc; flags: FlagsDoc }, incoming: { progress: ProgressDoc; flags: FlagsDoc }): MergePreview {
+  const p = mergeProgressForSync(local.progress, incoming.progress);
+  const f = mergeFlagsForSync(local.flags, incoming.flags);
+  const attemptIds = new Set(local.progress.attempts.map((a) => a.id));
+  const sessionIds = new Set(local.progress.sessions.map((s) => s.id));
+  const localFlags = new Map(local.flags.flags.map((x) => [x.id, x]));
+  const mergedIds = new Set(f.flags.map((x) => x.id));
+  return {
+    answers: p.attempts.filter((a) => !attemptIds.has(a.id)).length,
+    sessions: p.sessions.filter((s) => !sessionIds.has(s.id)).length,
+    flagsAdded: f.flags.filter((x) => !localFlags.has(x.id)).length,
+    flagsUpdated: f.flags.filter((x) => localFlags.has(x.id) && !sameDoc(x, localFlags.get(x.id))).length,
+    flagsRemoved: local.flags.flags.filter((x) => !mergedIds.has(x.id)).length,
+  };
+}

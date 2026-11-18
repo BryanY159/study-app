@@ -4,11 +4,6 @@ import path from 'node:path';
 /** The synthetic sample pack. The app ships with no pack, so every flow imports this one first. */
 export const SAMPLE_PACK = path.resolve('test/fixtures/sample-pack.json');
 
-/** Tests that are not about the data folder start as if she chose "Skip for now". */
-export async function skipFolderSetup(page: Page) {
-  await page.addInitScript(() => localStorage.setItem('studyapp:folder-skipped', '1'));
-}
-
 /** Import a pack file through History & data → Import pack…, the same way a user does. */
 export async function importPack(page: Page, url: string, file = SAMPLE_PACK, questions = 13) {
   await page.goto(url + '#/data');
@@ -18,7 +13,6 @@ export async function importPack(page: Page, url: string, file = SAMPLE_PACK, qu
 
 /** FR-2 happy path: pick one topic, answer 3 questions by keyboard, end, see it on the dashboard. */
 export async function drillFlow(page: Page, url: string) {
-  await skipFolderSetup(page);
   await importPack(page, url);
   await page.goto(url + '#/drill');
   // Everything starts selected: clear each module, then pick one topic.
@@ -45,4 +39,25 @@ export async function drillFlow(page: Page, url: string) {
   await expect(row).toContainText('Drill · 1 topic');
   await expect(row).toContainText('/3');
   await expect(page.getByTestId('topic-row').filter({ hasText: 'Glowroot anatomy' })).toHaveCount(1);
+}
+
+/** Wait until a value saved by the app is in IndexedDB (saves land a few ms after the action). */
+export async function waitForSaved(page: Page, store: 'docs' | 'meta', key: string, check: string) {
+  await page.waitForFunction(
+    async ([store, key, check]) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const q = indexedDB.open('studyapp-data');
+        q.onsuccess = () => resolve(q.result);
+        q.onerror = () => reject(q.error);
+      });
+      const value = await new Promise<unknown>((resolve) => {
+        const g = db.transaction(store).objectStore(store).get(key);
+        g.onsuccess = () => resolve(g.result);
+        g.onerror = () => resolve(undefined);
+      });
+      db.close();
+      return new Function('v', `return (${check})`)(value) === true;
+    },
+    [store, key, check] as const,
+  );
 }

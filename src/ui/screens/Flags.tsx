@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { flagState, flagsToJson, flagsToMarkdown, REASON_LABEL } from '../../engine/flags';
 import type { Flag } from '../../storage/docs';
-import { dateStamp, downloadFile } from '../../storage/backup';
+import { downloadFile } from '../../storage/backup';
+import { dateStamp } from '../../storage/syncFile';
 import { useApp } from '../../state/AppProvider';
 import { FlagDialog } from '../components/FlagDialog';
 import { KeyIdea, OptionFeedback, QuestionMeta, Stem } from '../components/QuestionView';

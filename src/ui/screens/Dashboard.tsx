@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { missedIds, moduleStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW } from '../../engine/progress';
 import { useApp } from '../../state/AppProvider';
-import { BackupOffer } from './ConnectFolder';
+import { BackupReminder } from '../components/SyncExport';
 import { SetAsideWarning } from '../components/SetAsideWarning';
 import { NoPack } from './NoPack';
 
@@ -25,7 +25,7 @@ export function formatWhen(iso: string, now = new Date()): string {
 }
 
 export function Dashboard() {
-  const { ix, progress, flags, backupOfferPending } = useApp();
+  const { ix, progress, flags } = useApp();
   const stats = useMemo(() => {
     if (!ix) return null;
     const relevant = progress.attempts.filter((a) => a.packId === ix.pack.packId);
@@ -48,7 +48,7 @@ export function Dashboard() {
 
   return (
     <main className="page">
-      {backupOfferPending && <BackupOffer />}
+      <BackupReminder />
       <SetAsideWarning />
       <div className="spread">
         <div>

@@ -1,58 +1,28 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makePack } from '../../test/makePack';
-import { emergencyBackup, makeBackup, parseBackup } from './backup';
-import { BrowserDataStore, listBrowserCopies, MemoryDataStore, STORAGE_PREFIX } from './DataStore';
+import { deliverFile, rescueBackup, type ShareEnv } from './backup';
+import { MemoryDataStore } from './DataStore';
 import { emptyFlags, emptyProgress } from './docs';
+import { IdbDataStore } from './IdbDataStore';
 import { loadDocs } from './load';
 import { choosePacks, clearImportedPacks, loadImportedPacks, saveImportedPack } from './packStore';
+import { parseSyncFile } from './syncFile';
 
 describe('DataStore', () => {
-  beforeEach(() => localStorage.clear());
-
-  it('memory store round-trips', async () => {
+  it('memory store round-trips docs and meta', async () => {
     const s = new MemoryDataStore();
     expect(await s.read('progress')).toBeNull();
     await s.write('progress', { a: 1 });
     expect(await s.read('progress')).toEqual({ a: 1 });
-  });
-
-  it('browser store writes under studyapp: keys', async () => {
-    const s = new BrowserDataStore();
-    await s.write('flags', emptyFlags());
-    expect(localStorage.getItem(`${STORAGE_PREFIX}flags`)).toContain('schemaVersion');
-    expect(await s.read('flags')).toEqual(emptyFlags());
+    await s.writeMeta({ deviceLabel: 'Phone' });
+    await s.writeMeta({ deviceLabel: undefined, lastExportAt: 'x' });
+    expect(await s.readMeta()).toEqual({ lastExportAt: 'x' });
   });
 
   it('loads empty docs on first run', async () => {
-    const r = await loadDocs(new BrowserDataStore());
+    const r = await loadDocs(new MemoryDataStore());
     expect(r).toEqual({ progress: emptyProgress(), flags: emptyFlags(), recovered: [], setAside: [] });
-  });
-
-  it('keeps a copy of corrupt data instead of losing it', async () => {
-    localStorage.setItem(`${STORAGE_PREFIX}progress`, '{not json');
-    localStorage.setItem(`${STORAGE_PREFIX}flags`, JSON.stringify({ schemaVersion: 99 }));
-    const r = await loadDocs(new BrowserDataStore());
-    expect(r.recovered).toEqual(['progress', 'flags']);
-    expect(r.progress).toEqual(emptyProgress());
-    const copies = listBrowserCopies(localStorage);
-    expect(copies.map((c) => c.name)).toEqual([expect.stringMatching(/^flags.corrupt-/), expect.stringMatching(/^progress.corrupt-/)]);
-    expect(copies.find((c) => c.name.startsWith('progress'))!.text).toBe('{not json');
-    expect(r.setAside.map((c) => c.doc)).toEqual(['progress', 'flags']);
-  });
-
-  it('keeps at most 3 set-aside copies per doc, and no duplicates', async () => {
-    const s = new BrowserDataStore();
-    for (let i = 0; i < 6; i++) await s.keepCopy(`progress.corrupt-2026-11-0${i}.json`, `bad ${i}`);
-    await s.keepCopy('progress.corrupt-2026-11-09.json', 'bad 5');
-    expect(listBrowserCopies(localStorage).map((c) => c.text)).toEqual(['bad 3', 'bad 4', 'bad 5']);
-  });
-
-  it('emergency backup is a restorable backup plus the raw entries', () => {
-    localStorage.setItem(`${STORAGE_PREFIX}progress`, JSON.stringify(emptyProgress()));
-    localStorage.setItem(`${STORAGE_PREFIX}flags`, '{broken');
-    const text = emergencyBackup(localStorage);
-    expect(parseBackup(text).ok).toBe(true);
-    expect(JSON.parse(text).raw[`${STORAGE_PREFIX}flags`]).toBe('{broken');
   });
 });
 
@@ -80,17 +50,80 @@ describe('packStore', () => {
   });
 });
 
-describe('backup', () => {
-  it('round-trips', () => {
+describe('rescue file (error screens)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('is an importable sync file from IndexedDB, plus every raw entry', async () => {
+    const factory = new IDBFactory();
+    const s = await IdbDataStore.open(factory);
     const p = emptyProgress();
     p.settings.hideFlagged = true;
-    const text = JSON.stringify(makeBackup(p, emptyFlags(), new Date('2026-11-05T00:00:00Z')));
-    const r = parseBackup(text);
-    expect(r.ok && r.backup.progress.settings.hideFlagged).toBe(true);
+    await s.write('progress', p);
+    await s.keepCopy('flags.corrupt-x.json', '{broken');
+    s.close();
+    localStorage.setItem('studyapp:flags', '{also broken');
+    const text = await rescueBackup(new Date('2026-11-05T00:00:00Z'), factory, localStorage);
+    const r = parseSyncFile(text);
+    expect(r.ok && r.file.progress.settings.hideFlagged).toBe(true);
+    const raw = JSON.parse(text).raw;
+    expect(raw.indexedDB.setAside).toEqual([{ name: 'flags.corrupt-x.json', text: '{broken' }]);
+    expect(raw.localStorage['studyapp:flags']).toBe('{also broken');
   });
 
-  it('rejects non-backups with a readable error', () => {
-    expect(parseBackup('nope')).toEqual({ ok: false, error: expect.stringMatching(/not valid JSON/) });
-    expect(parseBackup('{"a":1}')).toEqual({ ok: false, error: expect.stringMatching(/not a Study app backup/) });
+  it('falls back to the pre-v1.5 localStorage copy when IndexedDB is blocked', async () => {
+    const blocked = { open: () => { throw new Error('blocked'); } } as unknown as IDBFactory;
+    localStorage.setItem('studyapp:progress', JSON.stringify({ ...emptyProgress(), settings: { hideFlagged: true, activePackId: null } }));
+    const text = await rescueBackup(new Date(), blocked, localStorage);
+    const r = parseSyncFile(text);
+    expect(r.ok && r.file.progress.settings.hideFlagged).toBe(true);
+    expect(JSON.parse(text).raw.indexedDB).toBe('could not be opened');
+  });
+});
+
+describe('deliverFile (Share sheet or download)', () => {
+  let downloads: string[] = [];
+  beforeEach(() => {
+    downloads = [];
+    URL.createObjectURL = vi.fn(() => 'blob:x');
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloads.push(this.download);
+    });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const env = (over: Partial<ShareEnv> = {}): ShareEnv & { shared: File[][] } => {
+    const shared: File[][] = [];
+    return { touch: true, canShare: () => true, share: async (d) => void shared.push(d.files), shared, ...over };
+  };
+
+  it('opens the Share sheet on a touch device that can share files', async () => {
+    const e = env();
+    expect(await deliverFile('a.json', '{}', e)).toBe('shared');
+    expect(e.shared[0][0].name).toBe('a.json');
+    expect(downloads).toEqual([]);
+  });
+
+  it('downloads on desktop, even where sharing exists', async () => {
+    const e = env({ touch: false });
+    expect(await deliverFile('a.json', '{}', e)).toBe('downloaded');
+    expect(e.shared).toEqual([]);
+    expect(downloads).toEqual(['a.json']);
+  });
+
+  it('a cancelled Share sheet is not an export and does not download', async () => {
+    const e = env({ share: async () => Promise.reject(Object.assign(new Error('x'), { name: 'AbortError' })) });
+    expect(await deliverFile('a.json', '{}', e)).toBe('cancelled');
+    expect(downloads).toEqual([]);
+  });
+
+  it('a share that fails for another reason falls back to a download', async () => {
+    const e = env({ share: async () => Promise.reject(new Error('NotAllowed')) });
+    expect(await deliverFile('a.json', '{}', e)).toBe('downloaded');
+    expect(downloads).toEqual(['a.json']);
+  });
+
+  it('downloads when files cannot be shared', async () => {
+    expect(await deliverFile('a.json', '{}', env({ canShare: () => false }))).toBe('downloaded');
   });
 });

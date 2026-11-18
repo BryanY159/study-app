@@ -3,19 +3,17 @@ import { parsePack, formatIssues } from '../pack/checks';
 import type { Pack } from '../pack/schema';
 import { prunePreflags, seedPreflags } from '../engine/flags';
 import { indexPack, type PackIndex } from '../engine/packIndex';
-import type { DataStore, SetAsideCopy } from '../storage/DataStore';
+import type { DataStore, Meta, MetaStore, SetAsideCopy } from '../storage/DataStore';
 import type { Attempt, Flag, FlagsDoc, ProgressDoc, Session } from '../storage/docs';
 import { loadDocs } from '../storage/load';
 import { choosePacks, loadImportedPacks, saveImportedPack } from '../storage/packStore';
-import type { Backup } from '../storage/backup';
-import type { FolderConnection, FolderState } from '../storage/folderConnection';
-import type { MirrorStatus } from '../storage/MirroredDataStore';
-import { mergeFlags, mergeProgress, sameDoc } from '../storage/sync';
+import { browserShareEnv, type ShareEnv } from '../storage/backup';
+import { requestPersistence, type Persistence, type StorageManagerLike } from '../storage/persist';
+import { mergeFlagsForSync, mergeProgressForSync, sameDoc } from '../storage/sync';
+import { cleanLabel, type SyncFile } from '../storage/syncFile';
 import { StartupError } from '../ui/screens/StartupError';
 
 export type SaveStatus = 'saved' | 'saving' | 'error';
-
-export type FolderResult = { ok: true } | { ok: false; error: string };
 
 /** An in-progress drill. Not persisted: every answer is saved as an attempt as it happens. */
 export interface DrillRun {
@@ -36,13 +34,14 @@ export interface AppState {
   /** Saved data that couldn't be read; offered as a download. */
   setAside: SetAsideCopy[];
   drill: DrillRun | null;
-  /** Data-folder saving (FR-9); 'unsupported' when there is no folder connection at all. */
-  folderState: FolderState;
-  folderName: string | null;
-  mirrorStatus: MirrorStatus | null;
-  backupOfferPending: boolean;
-  /** Some saved data came from a newer app version: it is left alone and she should update index.html. */
+  /** Some saved data came from a newer app version: it is left alone and she should update the app. */
   newerVersionData: boolean;
+  /** Device-local values (label, last export, reminder snooze). Never synced. */
+  meta: Meta;
+  /** Whether the browser promised to keep this site's data. null until it has answered. */
+  persistence: Persistence | null;
+  shareEnv: ShareEnv;
+  now: () => Date;
 }
 
 export interface AppActions {
@@ -55,14 +54,14 @@ export interface AppActions {
   updateFlag: (id: string, patch: Partial<Pick<Flag, 'reason' | 'comment'>>) => void;
   removeFlag: (id: string) => void;
   importPack: (text: string) => Promise<{ ok: true; pack: Pack; replaced: number | null } | { ok: false; error: string }>;
-  /** Replaces progress and flags in both copies (the caller confirms and saves a safety copy first). */
-  restoreBackup: (b: Backup) => void;
+  /** Replace: progress and flags become the file's (the caller confirms and saves a safety copy first). */
+  restoreBackup: (b: Pick<SyncFile, 'progress' | 'flags'>) => void;
+  /** Merge: adds what the file has that this device doesn't (sync rules, see sync.ts). */
+  mergeSyncFile: (b: Pick<SyncFile, 'progress' | 'flags'>) => void;
   setActivePack: (packId: string) => void;
-  connectFolder: () => Promise<FolderResult>;
-  reconnectFolder: () => Promise<FolderResult>;
-  skipFolder: () => void;
-  disconnectFolder: () => Promise<void>;
-  dismissBackupOffer: () => void;
+  setDeviceLabel: (label: string) => void;
+  markExported: () => void;
+  snoozeReminder: (until: string) => void;
 }
 
 const Ctx = createContext<(AppState & AppActions) | null>(null);
@@ -82,6 +81,8 @@ interface ChangeOptions {
   replace?: boolean;
 }
 
+const defaultNow = () => new Date();
+
 const withTimeout = <T,>(p: Promise<T>, ms: number, what: string): Promise<T> =>
   Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms / 1000)} seconds.`)), ms))]);
 
@@ -91,14 +92,17 @@ interface Props {
   /** Tests pass these to skip IndexedDB. */
   loadImported?: () => Promise<Pack[]>;
   saveImported?: (p: Pack) => Promise<void>;
-  /** Data-folder connection; its mirror must be the `store` above. */
-  folder?: FolderConnection;
+  /** Device-local values (the raw store under `store`). Tests may omit it. */
+  meta?: MetaStore;
+  storageManager?: StorageManagerLike | null;
+  shareEnv?: ShareEnv;
+  now?: () => Date;
   /** Give up loading after this long and show the error screen. */
   loadTimeoutMs?: number;
   children: ReactNode;
 }
 
-export function AppProvider({ store, bundledPacks, loadImported = loadImportedPacks, saveImported = saveImportedPack, folder, loadTimeoutMs = 20_000, children }: Props) {
+export function AppProvider({ store, bundledPacks, loadImported = loadImportedPacks, saveImported = saveImportedPack, meta: metaStore, storageManager = null, shareEnv, now = defaultNow, loadTimeoutMs = 20_000, children }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [packs, setPacks] = useState<Pack[]>(bundledPacks);
@@ -107,6 +111,9 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
   const [setAside, setSetAside] = useState<SetAsideCopy[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [drill, setDrill] = useState<DrillRun | null>(null);
+  const [meta, setMeta] = useState<Meta>({});
+  const [persistence, setPersistence] = useState<Persistence | null>(null);
+  const [share] = useState<ShareEnv>(() => shareEnv ?? browserShareEnv());
   const writes = useRef(Promise.resolve());
   // Latest docs, so actions fired in quick succession build on each other.
   const latest = useRef<{ progress: ProgressDoc | null; flags: FlagsDoc | null }>({ progress: null, flags: null });
@@ -115,12 +122,17 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
     let alive = true;
     (async () => {
       try {
-        const [docs, imported] = await withTimeout(Promise.all([loadDocs(store), loadImported().catch(() => [])]), loadTimeoutMs, 'Loading your saved data');
+        const [docs, imported, m] = await withTimeout(
+          Promise.all([loadDocs(store), loadImported().catch(() => []), metaStore ? metaStore.readMeta().catch(() => ({}) as Meta) : ({} as Meta)]),
+          loadTimeoutMs,
+          'Loading your saved data',
+        );
         if (!alive) return;
         latest.current = { progress: docs.progress, flags: docs.flags };
         setProgress(docs.progress);
         setFlags(docs.flags);
         setSetAside(docs.setAside);
+        setMeta(m);
         setPacks(choosePacks(bundledPacks, imported));
         setLoaded(true);
       } catch (e) {
@@ -130,7 +142,34 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
     return () => {
       alive = false;
     };
-  }, [store, bundledPacks, loadImported, loadTimeoutMs]);
+  }, [store, bundledPacks, loadImported, loadTimeoutMs, metaStore]);
+
+  /** Device-local values: update state now, save in the background (losing one is harmless). */
+  const patchMeta = useCallback(
+    (patch: Partial<Meta>) => {
+      setMeta((m) => {
+        const next: Record<string, unknown> = { ...m, ...patch };
+        for (const [k, v] of Object.entries(next)) if (v === undefined) delete next[k];
+        return next as Meta;
+      });
+      void metaStore?.writeMeta(patch).catch((e) => console.error('Saving device settings failed', e));
+    },
+    [metaStore],
+  );
+
+  // Ask the browser to keep this site's data (once per start, while not granted).
+  useEffect(() => {
+    if (!loaded) return;
+    let alive = true;
+    void requestPersistence(storageManager).then((p) => {
+      if (!alive) return;
+      setPersistence(p);
+      if (p !== 'unknown') void metaStore?.writeMeta({ persisted: p === 'persistent' }).catch(() => undefined);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [loaded, storageManager, metaStore]);
 
   /** Write-through: update state now, persist in order. */
   const persist = useCallback(
@@ -144,56 +183,6 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
         );
     },
     [store],
-  );
-
-  /** Re-read the saved docs (the folder may have had more) and merge them into what's in memory. */
-  const reloadDocs = useCallback(async () => {
-    await writes.current;
-    const docs = await loadDocs(store);
-    const p = latest.current.progress ? mergeProgress(latest.current.progress, docs.progress) : docs.progress;
-    const f = latest.current.flags ? mergeFlags(latest.current.flags, docs.flags) : docs.flags;
-    latest.current = { progress: p, flags: f };
-    setProgress(p);
-    setFlags(f);
-    if (docs.setAside.length) setSetAside((s) => [...s, ...docs.setAside]);
-  }, [store]);
-
-  // Re-render when the folder connection or its save status changes; reload once it connects.
-  const [, setFolderTick] = useState(0);
-  useEffect(() => {
-    if (!folder || !loaded) return;
-    let wasConnected = folder.state === 'connected';
-    const bump = () => setFolderTick((n) => n + 1);
-    const offFolder = folder.subscribe(() => {
-      const now = folder.state === 'connected';
-      if (now && !wasConnected) void reloadDocs().catch(() => undefined);
-      wasConnected = now;
-      bump();
-    });
-    const offMirror = folder.mirror.subscribe((s) => {
-      if (s.kind === 'lost-access') folder.markLostAccess();
-      if (s.kind === 'newer-version') folder.markNewerVersion();
-      bump();
-    });
-    return () => {
-      offFolder();
-      offMirror();
-    };
-  }, [folder, loaded, reloadDocs]);
-
-  const folderAction = useCallback(
-    async (run: () => Promise<unknown>): Promise<FolderResult> => {
-      try {
-        await run();
-        await reloadDocs();
-        return { ok: true };
-      } catch (e) {
-        // She closed the picker without choosing: not an error worth showing.
-        if ((e as DOMException)?.name === 'AbortError') return { ok: false, error: '' };
-        return { ok: false, error: `Couldn't connect the folder: ${(e as Error)?.message ?? e}` };
-      }
-    },
-    [reloadDocs],
   );
 
   const updateProgress = useCallback(
@@ -298,21 +287,21 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
         return { ok: true, pack: r.pack, replaced: current ? current.version : null };
       },
       restoreBackup: (b) => {
-        // Stamped so a copy that missed the restore (folder disconnected) is replaced on reconnect, not merged back in.
+        // Stamped, so an older copy of this device's data merged later only adds what came after the restore.
         const restoredAt = new Date().toISOString();
         updateProgress(() => ({ ...b.progress, restoredAt }), { replace: true });
         updateFlags(() => ({ ...b.flags, restoredAt }), { replace: true });
       },
-      setActivePack: (packId) => updateProgress((p) => ({ ...p, settings: { ...p.settings, activePackId: packId } })),
-      connectFolder: () => (folder ? folderAction(() => folder.connect()) : Promise.resolve({ ok: false, error: 'Folder saving is not available in this browser.' })),
-      reconnectFolder: () => (folder ? folderAction(() => folder.reconnect()) : Promise.resolve({ ok: false, error: 'Folder saving is not available in this browser.' })),
-      skipFolder: () => folder?.skip(),
-      disconnectFolder: async () => {
-        await folder?.disconnect();
+      mergeSyncFile: (b) => {
+        updateProgress((p) => mergeProgressForSync(p, b.progress));
+        updateFlags((f) => mergeFlagsForSync(f, b.flags));
       },
-      dismissBackupOffer: () => folder?.dismissBackupOffer(),
+      setActivePack: (packId) => updateProgress((p) => ({ ...p, settings: { ...p.settings, activePackId: packId } })),
+      setDeviceLabel: (label) => patchMeta({ deviceLabel: cleanLabel(label) || undefined }),
+      markExported: () => patchMeta({ lastExportAt: now().toISOString(), reminderSnoozedUntil: undefined }),
+      snoozeReminder: (until) => patchMeta({ reminderSnoozedUntil: until }),
     }),
-    [folder, folderAction, ix, packs, saveImported, updateFlags, updateProgress],
+    [ix, now, packs, patchMeta, saveImported, updateFlags, updateProgress],
   );
 
   if (loadError) return <StartupError title="Your saved data couldn't be loaded" error={loadError} />;
@@ -328,11 +317,11 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
     recovered: [...new Set(setAside.map((c) => c.doc))],
     setAside,
     drill,
-    folderState: folder?.state ?? ('unsupported' as const),
-    folderName: folder?.folderName ?? null,
-    mirrorStatus: folder ? folder.mirror.getStatus() : null,
-    backupOfferPending: folder?.backupOfferPending ?? false,
-    newerVersionData: !!(store as { newerVersionData?: boolean }).newerVersionData || folder?.state === 'newer-version',
+    newerVersionData: !!(store as { newerVersionData?: boolean }).newerVersionData,
+    meta,
+    persistence,
+    shareEnv: share,
+    now,
     ...actions,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

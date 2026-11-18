@@ -46,36 +46,97 @@ See [`test/fixtures/sample-pack.json`](../test/fixtures/sample-pack.json) for a 
 
 - Two documents: **progress** (attempts, sessions, settings, an active mock) and
   **flags**. Their schemas live in `src/storage/docs.ts`.
-- **Browser storage** is always written. A **data folder** (File System Access API,
-  Chrome/Edge only) is optional and mirrored through a write queue.
+- **Everything is in IndexedDB** (`src/storage/IdbDataStore.ts`), database
+  `studyapp-data` with three stores:
+  - `docs`: the two documents;
+  - `setAside`: unreadable copies, at most 3 per document;
+  - `meta`: device-local values (device name, last export, reminder snooze,
+    persistence answer, migration stamp). They are never synced.
+
+  Imported packs keep their own database (`src/storage/packStore.ts`). iOS caps
+  `localStorage` at about 5 MB, so nothing new goes there.
+- **Every save goes through `SafeStore`** (`src/storage/SafeStore.ts`). On IndexedDB
+  each save is **one read-merge-write transaction**, so there's no gap between
+  reading and writing. A save lands a few milliseconds after the change; from then
+  on a reload or a closed app keeps it.
 - **Saving merges, it never overwrites** (`src/storage/sync.ts`):
   - attempts and sessions are combined by ID;
   - flags are combined by ID, and the newer `updatedAt` wins;
   - removed flags leave tombstones, so an older copy can't bring them back;
-  - a restore from backup stamps `restoredAt` and is treated as a replacement.
+  - a restore (Replace) stamps `restoredAt`; an older copy of this device's data
+    merged later only contributes what came after it.
 - **Safety rules:**
   - data written by a newer app version is never written over;
-  - a copy that fails to parse is set aside as `*.corrupt-<time>.json`;
-  - a startup error screen explains what failed.
-- **One tab at a time** (Web Locks). A second tab offers "Use this tab instead".
-- Imported packs are kept in IndexedDB (`src/storage/packStore.ts`).
+  - a copy that fails to parse is set aside as `*.corrupt-<time>.json` and offered
+    as a download;
+  - a startup error screen explains what failed. It offers a rescue file: an
+    importable sync file, plus every raw entry it could read.
+- **One tab at a time** (Web Locks). A second tab offers "Use this tab instead",
+  and the first tab then stops saving.
+- **Moving from v1.4** (`src/storage/legacy.ts`):
+  - on the first start, the old `localStorage` documents (`studyapp:*`) are merged
+    into IndexedDB once;
+  - `meta.legacyMigratedAt` records that it ran;
+  - the old keys are left as they were, and nothing writes to them.
+- **`navigator.storage.persist()`** is requested on each start until granted. The
+  Data page shows the answer.
+
+## Sync file (backup and moving between devices)
+
+`src/storage/syncFile.ts`. One format serves both:
+
+```jsonc
+{ "kind": "studyapp-sync", "formatVersion": 2, "appVersion": "1.5.0",
+  "device": "Laptop", "createdAt": "…", "progress": { … }, "flags": { … } }
+```
+
+- **Format 1** is the v1.4 backup (`kind: "studyapp-backup"`). It is accepted and
+  upgraded on import. Each future format adds one upgrade step.
+- A file or document from a newer app version is refused, with a message to update.
+- **Export** builds the file before the click handler's first `await`, so iOS still
+  opens the Share sheet. Touch devices share; desktops download.
+- **Merge** (`mergeProgressForSync` / `mergeFlagsForSync`) uses the same ID rules,
+  with two differences for a file from another device:
+  - `restoredAt` is not applied across devices, because it would drop the other
+    device's older answers;
+  - `settings` and the exam in progress stay this device's.
+
+  Tombstones still apply. Merging is pure and idempotent, so importing the same
+  file twice changes nothing. A preview (`previewMerge`) lists what will be added
+  before anything is written.
+- **Replace** saves a safety copy first, then confirms with both counts.
+- **Backup reminder** (`src/storage/reminder.ts`): Home shows it when this device
+  has answers and hasn't exported for more than `REMINDER_DAYS` (3) days.
+  Dismissing it hides it for a day.
 
 ## Build
 
 Vite + React, built by `vite-plugin-singlefile` into one self-contained
 `dist/index.html` (fonts inlined, relative base). It works both from GitHub Pages
-and opened straight from disk.
+and opened straight from disk. `public/` (the iOS storage spike page) is copied
+into `dist/` as is.
 
 ## Tests
 
-- **Unit (Vitest + jsdom):** engine, pack checks, storage merge and resilience,
-  UI flows, and the leak guard.
+- **Unit (Vitest + jsdom, `fake-indexeddb`):**
+  - engine, pack checks, and the leak guard;
+  - storage: IndexedDB, merge and sync rules, migration, sync file, reminder;
+  - resilience and UI flows.
 - **End-to-end (Playwright, Chromium):**
-  - against `vite preview`: drill, data folder via OPFS, two tabs;
+  - against `vite preview`:
+    - drill and two tabs;
+    - sync between two browser contexts: Merge, repeat, Replace, and a v1.4 backup;
+    - the reminder, with a fake clock;
+    - the move from v1.4 `localStorage`;
+    - the iOS storage spike page;
   - against the built file over `file://` with the network blocked: import,
-    drill, mock exam, backup, figures, pre-flags, a 600-question performance run.
-- **Fixtures:** `test/fixtures/sample-pack.json` (invented subject) and
-  `test/makePack.ts` (generated packs of any size).
+    drill, mock exam, sync export, figures, pre-flags, and a 600-question
+    performance run.
+- **Fixtures:**
+  - `test/fixtures/sample-pack.json`: an invented subject;
+  - `test/fixtures/sample-pack.v1-4-backup.json`: a v1.4 backup of answers to it,
+    built by `test/makeV14Backup.ts`;
+  - `test/makePack.ts`: generated packs of any size.
 
 ## Leak guard
 

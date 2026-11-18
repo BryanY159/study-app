@@ -190,3 +190,11 @@ textarea { width: 100%; border: 1px solid var(--border-strong); border-radius: 1
 .confirm-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .confirm-table th, .confirm-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border-strong); }
 .page-banner { max-width: 960px; margin: 16px auto 0; }
+
+/* Sync & backup */
+.text-input { width: 100%; max-width: 320px; min-height: 44px; border: 1px solid var(--border-strong); border-radius: 10px; padding: 0 12px; font: inherit; background: var(--surface); color: var(--text); }
+.choice { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 10px; cursor: pointer; }
+.choice input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); }
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-tint); }
+.preview-list { margin: 0; padding-left: 20px; }
+.reminder { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }

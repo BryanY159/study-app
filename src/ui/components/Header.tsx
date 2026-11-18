@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useApp } from '../../state/AppProvider';
 import type { Route } from '../router';
 
@@ -35,61 +34,34 @@ export function Header({ route }: { route: Route }) {
   );
 }
 
-export type ChipKind = 'folder' | 'saving-folder' | 'browser' | 'reconnect' | 'retrying' | 'failed' | 'newer';
+export type ChipKind = 'saved' | 'saving' | 'failed' | 'newer';
 
-/** Which save state to show, from the folder connection and the last write. */
-export function chipKind(a: Pick<ReturnType<typeof useApp>, 'folderState' | 'mirrorStatus' | 'saveStatus'>): ChipKind {
-  const m = a.mirrorStatus;
-  if (a.saveStatus === 'error' || m?.kind === 'browser-failed') return 'failed';
-  if (m?.kind === 'failed') return 'retrying';
-  if (a.folderState === 'newer-version' || m?.kind === 'newer-version') return 'newer';
-  if (a.folderState === 'needs-permission' || m?.kind === 'lost-access') return 'reconnect';
-  if (a.folderState === 'connected') return m?.kind === 'saving' ? 'saving-folder' : 'folder';
-  return 'browser';
+/** Which save state to show, from the last write. */
+export function chipKind(a: Pick<ReturnType<typeof useApp>, 'saveStatus' | 'newerVersionData'>): ChipKind {
+  if (a.saveStatus === 'error') return 'failed';
+  if (a.newerVersionData) return 'newer';
+  return a.saveStatus === 'saving' ? 'saving' : 'saved';
 }
 
 const CHIP_TEXT: Record<ChipKind, string> = {
-  folder: 'Saved to data folder',
-  'saving-folder': 'Saving to data folder…',
-  browser: 'Saved in browser',
-  reconnect: 'Saved in browser — reconnect folder',
-  retrying: 'Save failed — retrying (safe in browser)',
-  failed: 'Save failed — download a backup',
-  newer: 'Saved in browser only — update the app',
+  saved: 'Saved on this device',
+  saving: 'Saving…',
+  failed: 'Save failed — export a sync file',
+  newer: 'Some data is from a newer version — reload',
 };
 
 function SaveStatusChip() {
   const app = useApp();
-  const [error, setError] = useState('');
   const kind = chipKind(app);
-  const bad = kind === 'failed' || kind === 'retrying';
+  const bad = kind === 'failed';
   return (
-    <div className="row" style={{ gap: 10 }}>
-      <div className={`save-status${bad ? ' error' : ''}`} data-testid="save-status" title={app.mirrorStatus && 'error' in app.mirrorStatus ? app.mirrorStatus.error : undefined}>
-        {!bad && kind !== 'reconnect' && (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#177245" strokeWidth="2.5" aria-hidden="true">
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
-        )}
-        {CHIP_TEXT[kind]}
-      </div>
-      {kind === 'reconnect' && (
-        <button
-          type="button"
-          className="btn small primary"
-          onClick={async () => {
-            const r = await app.reconnectFolder();
-            setError(r.ok ? '' : r.error);
-          }}
-        >
-          Reconnect data folder
-        </button>
+    <div className={bad ? 'save-status error' : 'save-status'} data-testid="save-status">
+      {kind === 'saved' && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#177245" strokeWidth="2.5" aria-hidden="true">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
       )}
-      {error && (
-        <span className="small" style={{ color: 'var(--incorrect-ink)' }} role="alert">
-          {error}
-        </span>
-      )}
+      {CHIP_TEXT[kind]}
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FakeDir } from '../../test/fakeFs';
 import { FakeLocks } from '../../test/fakeLocks';
 import { attempt, makePack } from '../../test/makePack';
 import { Boot, type BootDeps } from '../Boot';
@@ -8,8 +7,7 @@ import { indexPack } from '../engine/packIndex';
 import type { Pack } from '../pack/schema';
 import { AppProvider } from '../state/AppProvider';
 import { MemoryDataStore, type DataStore } from '../storage/DataStore';
-import { emptyFlags, emptyProgress, type ProgressDoc } from '../storage/docs';
-import type { FolderDeps } from '../storage/folderConnection';
+import { emptyFlags, emptyProgress, type FlagsDoc, type ProgressDoc } from '../storage/docs';
 import { App } from './App';
 import { repairActiveMock } from './screens/Mock';
 import { ErrorBoundary } from './screens/StartupError';
@@ -17,23 +15,13 @@ import { ErrorBoundary } from './screens/StartupError';
 const noImports = async () => [] as Pack[];
 const noSave = async () => {};
 const pack = makePack({ a: 3 });
-const noFolder: FolderDeps = {
-  supported: false,
-  pickFolder: async () => {
-    throw new Error('no');
-  },
-  loadHandle: async () => undefined,
-  saveHandle: async () => {},
-  clearHandle: async () => {},
-  getFlag: () => false,
-  setFlag: () => {},
-};
 
 const bootDeps = (over: Partial<BootDeps> = {}): BootDeps => ({
   bundledPacks: [pack],
-  makeBrowserStore: () => new MemoryDataStore(),
-  folderDeps: () => noFolder,
+  openStore: async () => new MemoryDataStore(),
+  legacyStorage: () => null,
   locks: null,
+  shareEnv: { touch: false },
   loadImported: noImports,
   saveImported: noSave,
   ...over,
@@ -54,13 +42,14 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 describe('C-2: one tab at a time', () => {
-  it('a second tab shows "already open"; "Use this tab instead" takes over and the first tab stops', async () => {
+  it('a second tab shows "already open"; "Use this tab instead" takes over and the first tab stops saving', async () => {
     const locks = new FakeLocks();
     const shared = new MemoryDataStore();
-    const deps = bootDeps({ locks, makeBrowserStore: () => shared });
+    const deps = bootDeps({ locks, openStore: async () => shared });
     const a = render(<Boot deps={deps} />);
     await within(a.container).findByText('Welcome back');
 
@@ -74,23 +63,23 @@ describe('C-2: one tab at a time', () => {
 });
 
 describe('C-4: startup failures show an error screen', () => {
-  it('blocked browser storage: error screen with Download backup, Try again and details; Try again recovers', async () => {
+  it('blocked browser storage: error screen with a rescue download, Try again and details; Try again recovers', async () => {
     let blocked = true;
     render(
       <Boot
         deps={bootDeps({
-          makeBrowserStore: () => {
-            if (blocked) throw new DOMException("Failed to read the 'localStorage' property from 'Window': Access is denied", 'SecurityError');
+          openStore: async () => {
+            if (blocked) throw new DOMException('The user denied permission to access the database.', 'SecurityError');
             return new MemoryDataStore();
           },
         })}
       />,
     );
     expect(await screen.findByTestId('startup-error')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Download backup' })).toBeInTheDocument();
     expect(screen.getByTestId('error-details').textContent).toMatch(/SecurityError/);
-    fireEvent.click(screen.getByRole('button', { name: 'Download backup' }));
-    expect(downloads.map((d) => d.name)).toEqual([expect.stringMatching(/^study-backup-.*-rescue\.json$/)]);
+    fireEvent.click(screen.getByRole('button', { name: 'Download rescue file' }));
+    await waitFor(() => expect(downloads.map((d) => d.name)).toEqual([expect.stringMatching(/^study-sync-rescue-.*\.json$/)]));
+    expect(JSON.parse(await downloads[0].text)).toMatchObject({ kind: 'studyapp-sync', formatVersion: 2 });
 
     blocked = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -120,33 +109,6 @@ describe('C-4: startup failures show an error screen', () => {
     expect(screen.getByTestId('error-details').textContent).toMatch(/took longer/);
   });
 
-  it('N-2: a data folder that never answers does not block startup, and offers "Reconnect data folder"', async () => {
-    render(<Boot deps={bootDeps({ folderTimeoutMs: 30, folderDeps: () => ({ ...noFolder, supported: true, loadHandle: () => new Promise(() => {}) }) })} />);
-    expect(await screen.findByText('Welcome back')).toBeInTheDocument();
-    expect(screen.getByTestId('save-status').textContent).toBe('Saved in browser — reconnect folder');
-    expect(screen.getByRole('button', { name: 'Reconnect data folder' })).toBeInTheDocument();
-  });
-
-  it('N-2: a folder whose files hang at startup: the app starts browser-only, and one click reconnects later', async () => {
-    class HangingDir extends FakeDir {
-      hang = true;
-      override async getFileHandle(name: string, opts?: { create?: boolean }) {
-        if (this.hang) return new Promise<never>(() => {});
-        return super.getFileHandle(name, opts);
-      }
-    }
-    const dir = new HangingDir();
-    const flagsMap = new Map<string, boolean>();
-    const deps: FolderDeps = { ...noFolder, supported: true, loadHandle: async () => dir, getFlag: (k) => flagsMap.get(k) ?? false, setFlag: (k, on) => void flagsMap.set(k, on) };
-    render(<Boot deps={bootDeps({ folderTimeoutMs: 30, folderDeps: () => deps, mirrorOptions: { retryDelays: [1] } })} />);
-    expect(await screen.findByText('Welcome back')).toBeInTheDocument();
-    expect(screen.getByTestId('save-status').textContent).toBe('Saved in browser — reconnect folder');
-
-    dir.hang = false;
-    fireEvent.click(screen.getByRole('button', { name: 'Reconnect data folder' }));
-    await waitFor(() => expect(screen.getByTestId('save-status').textContent).toBe('Saved to data folder'));
-  });
-
   it('a render error shows the error screen instead of a blank page', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const Boom = () => {
@@ -162,8 +124,42 @@ describe('C-4: startup failures show an error screen', () => {
   });
 });
 
-describe('C-3: restore from backup', () => {
+describe('first start of v1.5: data from v1.4 moves over once', () => {
+  it('shows the v1.4 answers and flags, records the move, and never writes the old keys while she works', async () => {
+    const old = { ...emptyProgress(), updatedAt: '2026-11-10T00:00:00.000Z', attempts: [attempt('q-a-0001', true), attempt('q-a-0002', false)] };
+    const oldFlags: FlagsDoc = {
+      ...emptyFlags(),
+      flags: [{ id: 'flag-1', packId: 'test-pack', packVersion: 1, questionId: 'q-a-0001', reason: 'typo', comment: 'kept', mode: 'drill', source: 'user', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z' }],
+    };
+    localStorage.setItem('studyapp:progress', JSON.stringify(old));
+    localStorage.setItem('studyapp:flags', JSON.stringify(oldFlags));
+    const before = { ...localStorage };
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const removeItem = vi.spyOn(Storage.prototype, 'removeItem');
+
+    const store = new MemoryDataStore();
+    window.location.hash = '#/drill';
+    render(<Boot deps={bootDeps({ openStore: async () => store, legacyStorage: () => localStorage })} />);
+    // She drills, answering one question.
+    fireEvent.click(await screen.findByRole('button', { name: /Start drill/ }));
+    await screen.findByTestId('drill-position');
+    fireEvent.keyDown(window, { key: 'a' });
+    await screen.findByTestId('feedback');
+    fireEvent.click(screen.getByRole('button', { name: /End drill/ }));
+    await screen.findByText('Welcome back');
+
+    await waitFor(async () => expect(((await store.read('progress')) as ProgressDoc).attempts.length).toBe(3));
+    expect(((await store.read('flags')) as FlagsDoc).flags.map((f) => f.comment)).toEqual(['kept']);
+    expect(store.meta.legacyMigratedAt).toBeTruthy();
+    expect(setItem.mock.calls.filter(([k]) => String(k).startsWith('studyapp:'))).toEqual([]);
+    expect(removeItem.mock.calls.filter(([k]) => String(k).startsWith('studyapp:'))).toEqual([]);
+    expect({ ...localStorage }).toEqual(before);
+  });
+});
+
+describe('C-3: Import sync file → Replace (was "restore from backup")', () => {
   const current = (): ProgressDoc => ({ ...emptyProgress(), updatedAt: '2026-11-05T00:00:00Z', attempts: [attempt('q-a-0001', true), attempt('q-a-0002', false), attempt('q-a-0003', true)] });
+  // A v1.4-format backup: accepted and upgraded.
   const backupFile = () => {
     const backup = { kind: 'studyapp-backup', createdAt: '2026-10-30T12:00:00.000Z', progress: { ...emptyProgress(), attempts: [attempt('q-a-0001', false)] }, flags: emptyFlags() };
     return new File([JSON.stringify(backup)], 'old-backup.json', { type: 'application/json' });
@@ -174,19 +170,23 @@ describe('C-3: restore from backup', () => {
     await store.write('progress', current());
     window.location.hash = '#/data';
     render(
-      <AppProvider store={store} bundledPacks={[pack]} loadImported={noImports} saveImported={noSave}>
+      <AppProvider store={store} bundledPacks={[pack]} loadImported={noImports} saveImported={noSave} shareEnv={{ touch: false }}>
         <App />
       </AppProvider>,
     );
     await screen.findByRole('heading', { name: 'History & data' });
-    fireEvent.change(screen.getByTestId('backup-input'), { target: { files: [backupFile()] } });
+    fireEvent.change(screen.getByTestId('sync-input'), { target: { files: [backupFile()] } });
+    expect((await screen.findByTestId('sync-from')).textContent).toMatch(/older version of the app/);
+    fireEvent.click(screen.getByRole('radio', { name: /Replace/ }));
+    expect(downloads).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save a safety copy and continue' }));
     return store;
   }
 
-  it('downloads a safety backup first, then asks with both counts; Cancel changes nothing', async () => {
+  it('saves a safety copy first, then asks with both counts; Cancel changes nothing', async () => {
     const store = await openData();
     const dialog = await screen.findByTestId('restore-confirm');
-    expect(downloads.map((d) => d.name)).toEqual([expect.stringMatching(/^study-backup-before-restore-.*\.json$/)]);
+    await waitFor(() => expect(downloads.map((d) => d.name)).toEqual([expect.stringMatching(/^study-sync-before-replace-.*\.json$/)]));
     expect(JSON.parse(await downloads[0].text).progress.attempts).toHaveLength(3);
     expect(within(dialog).getByTestId('restore-current').textContent).toMatch(/now30/);
     expect(within(dialog).getByTestId('restore-backup').textContent).toMatch(/10$/);
@@ -195,11 +195,12 @@ describe('C-3: restore from backup', () => {
     expect(((await store.read('progress')) as ProgressDoc).attempts).toHaveLength(3);
   });
 
-  it('confirming replaces the data with the backup', async () => {
+  it('confirming replaces the data with the file and stamps restoredAt', async () => {
     const store = await openData();
-    fireEvent.click(within(await screen.findByTestId('restore-confirm')).getByRole('button', { name: 'Replace with backup' }));
+    fireEvent.click(within(await screen.findByTestId('restore-confirm')).getByRole('button', { name: 'Replace with this file' }));
     await waitFor(async () => expect(((await store.read('progress')) as ProgressDoc).attempts).toHaveLength(1));
-    expect(screen.getByTestId('data-message').textContent).toMatch(/Restored the backup/);
+    expect(((await store.read('progress')) as ProgressDoc).restoredAt).not.toBe('');
+    expect(screen.getByTestId('data-message').textContent).toMatch(/Replaced this device/);
   });
 });
 

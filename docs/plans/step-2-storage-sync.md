@@ -477,3 +477,28 @@ Each step ends green on `typecheck`, `test`, `e2e`, `leak-guard`, with one commi
   - `package.json` 1.4.2. `@study/pack` exports unchanged, so the content repo needs no change.
   - Typecheck clean, unit 117/117, e2e 15/15, leak guard clean on sources and `dist/`.
   - Waiting for the go-ahead to push `main` and tag `v1.4.2`.
+- **2026-11-17, `v1.4.2` pushed** after the go-ahead. CI passed on `main` and on the tag, and the deploy is live:
+  `/spike/storage.html` returns 200, and its manifest is served as `application/manifest+json`.
+- **2026-11-17, steps 2–10 done** (the WIP was first committed on the local branch `step-2-wip`, then squash-merged into `main`).
+  - Storage: `IdbDataStore`, `SafeStore` and `legacy.ts` (migrates once; nothing writes the old keys).
+  - Sync: `syncFile.ts` (format 2 + v1.4 upgrade), sync merge + `previewMerge`, `deliverFile` (Share sheet on touch devices, download elsewhere), `rescueBackup`.
+  - Reminder, `persist()`, device label.
+  - UI: Data page "Sync & backup" section, Merge/Replace import panel, Home reminder, simplified save chip, rescue download on the error screen.
+  - Folder code, screens and tests removed.
+  - **Found and fixed during e2e:** an answer given a moment before a reload could be lost. Each save read and wrote in two separate IndexedDB steps, and the reload landed between them.
+    - Each save is now one read-merge-write transaction (`IdbDataStore.update`).
+    - A save lands in IndexedDB in under 50 ms (measured). Only a reload within that window can still lose the very last change; with localStorage, saving was immediate.
+    - The e2e tests now wait until the save is in IndexedDB (`waitForSaved`) instead of reloading blindly. This is documented in `architecture.md`.
+  - Tests:
+    - unit 143/143 (117 before; the folder tests were replaced by IndexedDB, SafeStore, migration, sync-file, sync-merge, reminder/persist, sync UI and Boot-level migration tests);
+    - e2e 19/19, run 3× (57/57);
+    - typecheck clean;
+    - leak guard clean on sources (88 files) and `dist/`.
+  - Your confirmations are covered by tests:
+    - tombstones across devices, both directions (`sync.test.ts`);
+    - migrate once plus no writes to the old keys (`legacy.test.ts`, the Boot-level test in `resilience.test.tsx`, `e2e/migrate.spec.ts`);
+    - the spike manifest (`e2e/spike.spec.ts`).
+  - Removed tests: the `folder.test.ts` folder parts (queue, retry, reconnect, FolderConnection), the two N-2 folder-timeout tests, the "data folder" UI block, and `e2e/folder.spec.ts`. Every one tested code that no longer exists.
+  - `package.json` 1.5.0. `@study/pack` exports are unchanged, so the content repo needs no change.
+  - **Step 11 (spike result → `REMINDER_DAYS`) is still open.** It waits for your 7-day iPhone run. `REMINDER_DAYS` stays 3 until then.
+  - **Waiting for your go-ahead** to push `main` and tag `v1.5.0`.

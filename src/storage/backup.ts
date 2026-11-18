@@ -1,32 +1,10 @@
-import { z } from 'zod';
-import { STORAGE_PREFIX } from './DataStore';
-import { emptyFlags, emptyProgress, FlagsDocSchema, ProgressDocSchema, type FlagsDoc, type ProgressDoc } from './docs';
+import { readRawData } from './IdbDataStore';
+import { legacyRawEntries, safeLocalStorage } from './legacy';
+import { emptyFlags, emptyProgress, FlagsDocSchema, ProgressDocSchema } from './docs';
+import { makeSyncFile } from './syncFile';
 
-// Single-file backup of everything she has done (FR-9 manual part).
-
-export const BackupSchema = z.object({
-  kind: z.literal('studyapp-backup'),
-  createdAt: z.string(),
-  progress: ProgressDocSchema,
-  flags: FlagsDocSchema,
-});
-export type Backup = z.infer<typeof BackupSchema>;
-
-export function makeBackup(progress: ProgressDoc, flags: FlagsDoc, now = new Date()): Backup {
-  return { kind: 'studyapp-backup', createdAt: now.toISOString(), progress, flags };
-}
-
-export function parseBackup(text: string): { ok: true; backup: Backup } | { ok: false; error: string } {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return { ok: false, error: 'This file is not a backup (it is not valid JSON).' };
-  }
-  const r = BackupSchema.safeParse(raw);
-  if (!r.success) return { ok: false, error: 'This file is not a Study app backup, or it is damaged.' };
-  return { ok: true, backup: r.data };
-}
+// Getting a file off the device: the Share sheet on touch devices (iPhone/iPad:
+// AirDrop, Files, Messages), a normal download everywhere else.
 
 /** Save a file to the Downloads folder; works from file:// with no server. */
 export function downloadFile(name: string, content: string, type = 'application/json'): void {
@@ -40,44 +18,69 @@ export function downloadFile(name: string, content: string, type = 'application/
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export const dateStamp = (d = new Date()): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** The parts of navigator / window this needs; tests pass fakes. */
+export interface ShareEnv {
+  canShare?: (data: { files: File[] }) => boolean;
+  share?: (data: { files: File[] }) => Promise<void>;
+  /** True on a touch-first device. Desktop Chrome can share files too, but a download is what people expect there. */
+  touch: boolean;
+}
 
-/** localStorage, or null if the browser blocks it for this page. */
-export function safeLocalStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
+export const browserShareEnv = (): ShareEnv => ({
+  canShare: typeof navigator.canShare === 'function' ? (d) => navigator.canShare(d) : undefined,
+  share: typeof navigator.share === 'function' ? (d) => navigator.share(d) : undefined,
+  touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
+});
+
+export type Delivery = 'shared' | 'downloaded' | 'cancelled';
+
+/**
+ * Must be called straight from the click handler, before any await: iOS only
+ * opens the Share sheet while the tap still counts as the user's action.
+ */
+export async function deliverFile(name: string, text: string, env: ShareEnv = browserShareEnv()): Promise<Delivery> {
+  if (env.touch && env.share && env.canShare) {
+    const file = new File([text], name, { type: 'application/json' });
+    if (env.canShare({ files: [file] })) {
+      try {
+        await env.share({ files: [file] });
+        return 'shared';
+      } catch (e) {
+        if ((e as { name?: string })?.name === 'AbortError') return 'cancelled';
+        // Share failed for another reason: fall back to a download.
+      }
+    }
   }
+  downloadFile(name, text);
+  return 'downloaded';
 }
 
 /**
- * For the error screens: whatever this browser still holds. A normal (restorable)
- * backup when the saved docs parse, plus every raw studyapp: entry under `raw`.
+ * For the error screens: whatever this device still holds, without the app.
+ * A normal (importable) sync file when the saved docs parse, plus every raw entry under `raw`.
  */
-export function emergencyBackup(storage: Storage | null, now = new Date()): string {
-  const raw: Record<string, string> = {};
-  try {
-    for (let i = 0; storage && i < storage.length; i++) {
-      const k = storage.key(i);
-      if (k?.startsWith(STORAGE_PREFIX)) raw[k] = storage.getItem(k) ?? '';
+export async function rescueBackup(now = new Date(), factory?: IDBFactory, storage: Storage | null = safeLocalStorage()): Promise<string> {
+  const idb = await readRawData(factory);
+  const legacy = legacyRawEntries(storage);
+  const pick = <T>(schema: { safeParse(x: unknown): { success: true; data: T } | { success: false } }, ...candidates: unknown[]): T | null => {
+    for (const c of candidates) {
+      const r = schema.safeParse(c);
+      if (r.success) return r.data;
     }
-  } catch {
-    // Storage blocked part-way: keep what was read.
-  }
-  const parse = <T>(key: string, schema: { safeParse(x: unknown): { success: true; data: T } | { success: false } }): T | null => {
+    return null;
+  };
+  const parseJson = (s: string | undefined) => {
     try {
-      const r = schema.safeParse(JSON.parse(raw[key] ?? 'null'));
-      return r.success ? r.data : null;
+      return s === undefined ? undefined : JSON.parse(s);
     } catch {
-      return null;
+      return undefined;
     }
   };
-  const progress = parse(`${STORAGE_PREFIX}progress`, ProgressDocSchema) ?? emptyProgress();
-  const flags = parse(`${STORAGE_PREFIX}flags`, FlagsDocSchema) ?? emptyFlags();
-  return JSON.stringify({ ...makeBackup(progress, flags, now), raw }, null, 2);
+  const progress = pick(ProgressDocSchema, idb?.progress, parseJson(legacy['studyapp:progress'])) ?? emptyProgress();
+  const flags = pick(FlagsDocSchema, idb?.flags, parseJson(legacy['studyapp:flags'])) ?? emptyFlags();
+  const raw = {
+    indexedDB: idb ? { progress: idb.progress, flags: idb.flags, setAside: idb.copies } : 'could not be opened',
+    localStorage: legacy,
+  };
+  return JSON.stringify({ ...makeSyncFile(progress, flags, { device: '', now }), raw }, null, 2);
 }
-
-/** Attempt and flag counts, for the restore confirmation. */
-export const backupCounts = (b: Pick<Backup, 'progress' | 'flags'>) => ({ attempts: b.progress.attempts.length, flags: b.flags.flags.length });

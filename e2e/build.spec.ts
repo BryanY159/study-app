@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { makePack } from '../test/makePack';
-import { drillFlow, importPack, SAMPLE_PACK, skipFolderSetup } from './flows';
+import { drillFlow, importPack, SAMPLE_PACK, waitForSaved } from './flows';
 
 // The built app opened straight from disk (file://), from a temporary copy of dist/.
 // The build holds no pack: each test imports the synthetic sample pack, as a user would.
@@ -15,7 +15,6 @@ const sample = JSON.parse(readFileSync(SAMPLE_PACK, 'utf8'));
 
 /** Block everything except file:// so any network dependency fails the test. */
 async function offline(page: Page) {
-  await skipFolderSetup(page);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route(/^(?!file:)/, (route) => route.abort());
@@ -54,6 +53,8 @@ test('mock exam starts with the blueprint question count', async ({ page }) => {
   await expect(page.getByTestId('timer')).toBeVisible();
   // Answer one, reload, and the exam resumes with the answer kept.
   await page.keyboard.press('b');
+  // Saves land in IndexedDB a few ms after the answer; reload once it's there.
+  await waitForSaved(page, 'docs', 'progress', 'Object.values(v?.activeMock?.answers ?? {}).some(Boolean)');
   await page.reload();
   await expect(page.getByTestId('mock-position')).toHaveText(`Question 1 of ${expected}`);
   await expect(page.getByRole('radio', { checked: true })).toHaveCount(1);
@@ -63,14 +64,21 @@ test('mock exam starts with the blueprint question count', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('backup download works', async ({ page }) => {
+test('sync export works from file:// and an answer survives a reload (IndexedDB)', async ({ page }) => {
   await offline(page);
+  await drillFlow(page, APP);
+  await page.reload();
   await page.goto(APP + '#/data');
+  await expect(page.getByText('Drill · 1 topic').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Export sync file' }).click();
+  await page.getByRole('textbox', { name: 'Device name' }).fill('Laptop');
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download backup' }).click();
-  const file = await (await download).path();
-  const backup = JSON.parse(readFileSync(file, 'utf8'));
-  expect(backup.kind).toBe('studyapp-backup');
+  await page.getByRole('button', { name: 'Save name and export' }).click();
+  const d = await download;
+  expect(d.suggestedFilename()).toMatch(/^study-sync-laptop-\d{4}-\d{2}-\d{2}\.json$/);
+  const file = JSON.parse(readFileSync(await d.path(), 'utf8'));
+  expect(file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 2, device: 'Laptop' });
+  expect(file.progress.attempts.length).toBeGreaterThanOrEqual(3);
 });
 
 test('perf: 600-question pack imports and stays fast', async ({ page }) => {

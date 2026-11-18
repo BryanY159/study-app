@@ -23,11 +23,18 @@ Live site: https://bryany159.github.io/study-app/
 1. Open the site in Chrome, Edge or Safari.
 2. Go to **History & data → Import pack…** and choose a pack `.json` file.
 3. Use **Drill** to practise by topic, or **Mock exam** for a timed run.
-4. Progress and flags are saved in the browser. **Download backup** on the same
-   page saves a copy, and **Restore from backup…** brings it back.
+4. Progress and flags are saved on this device (IndexedDB). To back them up or use
+   another device, **History & data → Export sync file** saves one file (on an
+   iPhone or iPad it opens the Share sheet). On the other device, **Import sync
+   file…** with **Merge** adds what's new; **Replace** makes that device's data
+   the file's (a safety copy is saved first). A v1.4 backup file imports the same way.
+5. Home shows a gentle reminder when this device hasn't exported for a few days.
 
-In Chrome and Edge the app can also save to a folder you pick ("data folder").
-That's optional. Without it, everything stays in browser storage.
+There is no automatic sync and no account: the sync file is the only way data
+leaves a device.
+
+The page `spike/storage.html` is a standalone test page for checking whether a
+home-screen app on iOS keeps its saved data (see [`spike/ios-storage.md`](spike/ios-storage.md)).
 
 ## Development
 
@@ -39,6 +46,7 @@ npm run dev        # Vite dev server on http://localhost:5173
 npm run typecheck
 npm test           # Vitest unit tests
 npm run e2e        # builds, then Playwright (served build + file:// build)
+npx tsx test/makeV14Backup.ts  # rebuild the v1.4-format backup fixture
 npm run build      # dist/index.html: one self-contained file
 npm run leak-guard # add `-- --dist` to also check the build
 ```

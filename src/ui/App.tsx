@@ -1,7 +1,6 @@
 import { Header } from './components/Header';
 import { useApp } from '../state/AppProvider';
 import { useRoute } from './router';
-import { ConnectFolder } from './screens/ConnectFolder';
 import { Dashboard } from './screens/Dashboard';
 import { DataPage } from './screens/DataPage';
 import { DrillRun } from './screens/DrillRun';
@@ -12,7 +11,7 @@ import { MockResults } from './screens/MockResults';
 
 export function App() {
   const route = useRoute();
-  const { folderState, newerVersionData } = useApp();
+  const { newerVersionData } = useApp();
   const [a, b, c] = route.parts;
   // Runs (drill, mock) use their own focused header.
   const inRun = (a === 'drill' || a === 'mock') && b === 'run';
@@ -26,16 +25,13 @@ export function App() {
   else if (a === 'flags') screen = <Flags />;
   else if (a === 'data') screen = <DataPage />;
   else screen = <Dashboard />;
-  // First run: ask for the data folder before anything else (not mid-exam).
-  if (folderState === 'not-set-up' && !inRun) screen = <ConnectFolder />;
 
   return (
     <>
       {!inRun && <Header route={route} />}
       {newerVersionData && (
         <div className="banner warn page-banner" role="alert" data-testid="newer-version">
-          Your data was saved by a newer version of this app; update <code>index.html</code>. Until then, that data is left untouched and this app saves in the
-          browser only.
+          Some of your data was saved by a newer version of this app, so this version leaves it untouched. Reload the page to get the latest version.
         </div>
       )}
       {screen}
