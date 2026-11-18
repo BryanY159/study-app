@@ -35,9 +35,19 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .grid-main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; }
 .grid-aside { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
-@media (max-width: 900px) {
+/* Tablet (640–1023px): two columns. Phone (< 640px): one column. */
+@media (max-width: 1023px) {
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-3 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .grid-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .grid-aside { grid-template-columns: 1fr; }
+  .page { padding-top: 20px; padding-bottom: 20px; }
+}
+@media (max-width: 639px) {
   .grid-3, .grid-main, .grid-aside { grid-template-columns: 1fr; }
-  .page { padding: 20px 16px; }
+  .grid-3 > :last-child:nth-child(odd) { grid-column: auto; }
+  .action-card { padding: 16px 18px; }
+  .card { padding: 18px; }
 }
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .stack-lg { display: flex; flex-direction: column; gap: 20px; }
@@ -221,3 +231,8 @@ html { -webkit-text-size-adjust: 100%; }
 .sheet .grabber { width: 40px; height: 5px; border-radius: 99px; background: var(--border-strong); margin: 0 auto 8px; }
 .sheet a, .sheet .sheet-item { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: 0 8px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--divider); font-size: 16px; }
 .app-header.compact .inner { padding-top: 10px; padding-bottom: 10px; gap: 12px; }
+
+.collapse > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; list-style: none; }
+.collapse > summary::-webkit-details-marker { display: none; }
+.collapse > summary::after { content: "▾"; margin-left: 8px; color: var(--muted); }
+.collapse[open] > summary::after { content: "▴"; }

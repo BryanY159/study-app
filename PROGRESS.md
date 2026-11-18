@@ -48,3 +48,7 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
   - drill checkbox rows were 40 px; they are now 44 px everywhere;
   - test-only races: a hash navigation measured the previous screen, a navigation raced "End drill", and parallel projects shared a temp file name.
 - Unit 189 (+12); e2e 84 passed + 6 skipped (Chromium-only service-worker tests on phone and tablet) per run, 3 runs.
+### M4.2 Dashboard — done
+- Phone: one column (reminder → quick actions → topics → overall / by module), and recent sessions folded behind "Show recent sessions". Tablet: two columns (quick actions 2-up, with the odd card full width; topics beside overall). Laptop: as in v1.
+- e2e `dashboard.spec.ts` checks grid columns per viewport, section order on phone, and the sessions toggle; it attaches a screenshot per viewport.
+- Unit 189, e2e 87 passed + 6 skipped.

@@ -3,6 +3,7 @@ import { missedIds, moduleStats, overallStats, recentSessions, topicStats, TOPIC
 import { useApp } from '../../state/AppProvider';
 import { BackupReminder } from '../components/SyncExport';
 import { SetAsideWarning } from '../components/SetAsideWarning';
+import { useBreakpoint } from '../useBreakpoint';
 import { Welcome } from './Welcome';
 
 export function barClass(p: number): string {
@@ -26,6 +27,7 @@ export function formatWhen(iso: string, now = new Date()): string {
 
 export function Dashboard() {
   const { ix, progress, flags } = useApp();
+  const phone = useBreakpoint() === 'phone';
   const stats = useMemo(() => {
     if (!ix) return null;
     const relevant = progress.attempts.filter((a) => a.packId === ix.pack.packId);
@@ -131,25 +133,40 @@ export function Dashboard() {
               </div>
             ))}
           </div>
-          <div>
-            <h2 style={{ marginBottom: 4 }}>Recent sessions</h2>
-            {sessions.length === 0 && <p className="muted">None yet.</p>}
-            {sessions.map(({ session, score }) => (
-              <div key={session.id} className="list-row" data-testid="session-row">
-                <div className="stack" style={{ gap: 0 }}>
-                  <span style={{ fontWeight: 500 }}>{session.mode === 'mock' ? <a href={`#/mock/results/${session.id}`}>{session.label}</a> : session.label}</span>
-                  <span className="small muted">
-                    {formatWhen(session.startedAt)} · {score.total} question{score.total === 1 ? '' : 's'}
-                  </span>
-                </div>
-                <span style={{ fontWeight: 600 }}>
-                  {score.correct}/{score.total}
-                </span>
-              </div>
-            ))}
-          </div>
+          {phone ? (
+            <details className="collapse" data-testid="recent-sessions">
+              <summary>Show recent sessions</summary>
+              <RecentSessions sessions={sessions} />
+            </details>
+          ) : (
+            <div data-testid="recent-sessions">
+              <h2 style={{ marginBottom: 4 }}>Recent sessions</h2>
+              <RecentSessions sessions={sessions} />
+            </div>
+          )}
         </section>
       </div>
     </main>
+  );
+}
+
+function RecentSessions({ sessions }: { sessions: ReturnType<typeof recentSessions> }) {
+  return (
+    <>
+      {sessions.length === 0 && <p className="muted">None yet.</p>}
+      {sessions.map(({ session, score }) => (
+        <div key={session.id} className="list-row" data-testid="session-row">
+          <div className="stack" style={{ gap: 0 }}>
+            <span style={{ fontWeight: 500 }}>{session.mode === 'mock' ? <a href={`#/mock/results/${session.id}`}>{session.label}</a> : session.label}</span>
+            <span className="small muted">
+              {formatWhen(session.startedAt)} · {score.total} question{score.total === 1 ? '' : 's'}
+            </span>
+          </div>
+          <span style={{ fontWeight: 600 }}>
+            {score.correct}/{score.total}
+          </span>
+        </div>
+      ))}
+    </>
   );
 }
