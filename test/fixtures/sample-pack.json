@@ -1,0 +1,281 @@
+{
+  "packId": "sample-orrin",
+  "version": 1,
+  "title": "Sample pack: Imaginary Botany of Planet Orrin",
+  "examDate": "2031-04-01",
+  "examBlueprint": { "questionCount": 6, "timeLimitMinutes": 10, "minModuleShare": 0.15 },
+  "modules": [
+    { "id": "alpha", "name": "Glowroots", "topics": [
+      { "id": "alpha-glowroot-anatomy", "name": "Glowroot anatomy", "source": "Sample unit 1, slides 1-6" },
+      { "id": "alpha-glowroot-light", "name": "Glowroot light cycles", "source": "Sample unit 1, slides 7-10" }
+    ] },
+    { "id": "beta", "name": "Skyvines", "topics": [
+      { "id": "beta-skyvine-signals", "name": "Skyvine signalling", "source": "Sample unit 2, slides 1-5" },
+      { "id": "beta-skyvine-growth", "name": "Skyvine growth", "source": "Sample unit 2, slides 6-9" }
+    ] },
+    { "id": "gamma", "name": "Ember moss", "topics": [
+      { "id": "gamma-ember-heat", "name": "Ember moss heat", "source": "Sample unit 3, slides 1-4" },
+      { "id": "gamma-ember-care", "name": "Ember moss care", "source": "Sample unit 3, slides 5-8" }
+    ] }
+  ],
+  "scenarios": [
+    {
+      "id": "sc-gamma-0001",
+      "text": "A greenhouse keeper on Orrin notices that a tray of ember moss has stopped glowing warm at night, and the tray sits next to a cold vent. The figure shows one moss cushion with its heat bulb labelled A.",
+      "figure": {
+        "file": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCAxMjAgODAiPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIGZpbGw9IiNmZmY4ZDYiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSIxOCIgZmlsbD0iIzliZDE5YiIvPjxwYXRoIGQ9Ik02MCA0MGg0MCIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjMiLz48dGV4dCB4PSIxMDIiIHk9IjQ0IiBmb250LXNpemU9IjEwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+QTwvdGV4dD48L3N2Zz4=",
+        "caption": "Ember moss cushion; A marks the heat bulb."
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "q-alpha-0001",
+      "topicIds": ["alpha-glowroot-anatomy"],
+      "scenarioId": null,
+      "stem": "Which part of a glowroot stores the light it gathers during the day?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "The lumen sac", "correct": true, "explanation": "The sample notes call the lumen sac the glowroot's light store." },
+        { "key": "B", "text": "The root crown", "correct": false, "explanation": "The root crown anchors the plant; it stores nothing." },
+        { "key": "C", "text": "The drift hairs", "correct": false, "explanation": "Drift hairs take in water vapour, not light." },
+        { "key": "D", "text": "The bark ring", "correct": false, "explanation": "The bark ring is protective only." }
+      ],
+      "summary": "Glowroots store daylight in the lumen sac.",
+      "level": "recall",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/alpha/reading-1/slides.pdf", "locator": "slide 2" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-alpha-0002",
+      "topicIds": ["alpha-glowroot-anatomy"],
+      "scenarioId": null,
+      "stem": "A glowroot's drift hairs are trimmed off. What happens first?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "It glows brighter", "correct": false, "explanation": "Trimming the drift hairs doesn't change the light store." },
+        { "key": "B", "text": "It takes in less water vapour", "correct": true, "explanation": "Drift hairs are where water vapour comes in, so less is taken in." },
+        { "key": "C", "text": "Its root crown loosens", "correct": false, "explanation": "The root crown is a separate structure." },
+        { "key": "D", "text": "Its bark ring thickens", "correct": false, "explanation": "The notes don't link the hairs to the bark ring." }
+      ],
+      "summary": "Drift hairs take in water vapour.",
+      "level": "application",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/alpha/reading-1/notes-part-1.txt", "locator": "part 1, \"the drift hairs pull in vapour\"" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-alpha-0003",
+      "topicIds": ["alpha-glowroot-anatomy"],
+      "scenarioId": null,
+      "stem": "Which structure keeps a glowroot fixed in loose soil?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "The lumen sac", "correct": false, "explanation": "The lumen sac stores light." },
+        { "key": "B", "text": "The drift hairs", "correct": false, "explanation": "Drift hairs take in water vapour." },
+        { "key": "C", "text": "The root crown", "correct": true, "explanation": "The root crown is the anchoring structure." },
+        { "key": "D", "text": "None of the above", "correct": false, "explanation": "The root crown does this." }
+      ],
+      "summary": "The root crown anchors the glowroot.",
+      "level": "recall",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/alpha/reading-1/slides.pdf", "locator": "slide 4" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-alpha-0005",
+      "topicIds": ["alpha-glowroot-anatomy"],
+      "scenarioId": null,
+      "stem": "A glowroot has a torn lumen sac but every other part is intact. What would a keeper see that evening?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "A normal glow", "correct": false, "explanation": "With nowhere to store light, there's nothing to glow with." },
+        { "key": "B", "text": "Little or no glow", "correct": true, "explanation": "The lumen sac is the light store, so a torn sac leaves little to release." },
+        { "key": "C", "text": "The plant tipping over", "correct": false, "explanation": "Anchoring is the root crown's job, and it is intact." },
+        { "key": "D", "text": "Wilting from thirst", "correct": false, "explanation": "The drift hairs, which take in vapour, are intact." }
+      ],
+      "summary": "No light store means little or no glow.",
+      "level": "application",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/alpha/reading-1/slides.pdf", "locator": "slide 2" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-alpha-0004",
+      "topicIds": ["alpha-glowroot-light"],
+      "scenarioId": null,
+      "stem": "Orrin's night lasts twice as long as usual. How does a glowroot's evening glow change?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "It starts earlier", "correct": false, "explanation": "The glow starts at dusk, whatever the night's length." },
+        { "key": "B", "text": "It is brighter", "correct": false, "explanation": "The same store spread over longer gives a dimmer glow." },
+        { "key": "C", "text": "It stops completely", "correct": false, "explanation": "The store still empties, just more slowly." },
+        { "key": "D", "text": "It is dimmer but lasts longer", "correct": true, "explanation": "The notes say the stored light is rationed across the night." }
+      ],
+      "summary": "Stored light is rationed across the night.",
+      "level": "application",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/alpha/reading-1/slides.pdf", "locator": "slide 8" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-beta-0001",
+      "topicIds": ["beta-skyvine-signals"],
+      "scenarioId": null,
+      "stem": "How does one skyvine warn its neighbours about frost?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "It releases a sweet scent", "correct": true, "explanation": "The sample notes describe a sweet scent as the frost warning." },
+        { "key": "B", "text": "It changes colour", "correct": false, "explanation": "Colour change is a growth sign, not a warning." },
+        { "key": "C", "text": "It drops its tendrils", "correct": false, "explanation": "Tendrils drop only in drought." },
+        { "key": "D", "text": "It hums", "correct": false, "explanation": "Skyvines make no sound in the notes." }
+      ],
+      "summary": "Frost warning = sweet scent.",
+      "level": "recall",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/beta/reading-2/slides.pdf", "locator": "slide 3" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-beta-0002",
+      "topicIds": ["beta-skyvine-signals"],
+      "scenarioId": null,
+      "stem": "A skyvine is grown alone in a sealed jar and frost arrives. What does it still do?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "Nothing at all", "correct": false, "explanation": "It still responds to frost itself." },
+        { "key": "B", "text": "Release the warning scent", "correct": true, "explanation": "Releasing the scent doesn't depend on neighbours being there." },
+        { "key": "C", "text": "Grow toward the jar lid", "correct": false, "explanation": "Growth direction isn't linked to frost." },
+        { "key": "D", "text": "Turn its leaves to stone", "correct": false, "explanation": "Not described anywhere in the notes." }
+      ],
+      "summary": "The scent is released whether or not neighbours are present.",
+      "level": "application",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/beta/reading-2/notes-part-1.txt", "locator": "part 1, \"released whether or not neighbours are near\"" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-beta-0003",
+      "topicIds": ["beta-skyvine-growth"],
+      "scenarioId": null,
+      "stem": "Which of these speed up skyvine growth?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "Warm wind", "correct": false, "explanation": "True, but not the only one." },
+        { "key": "B", "text": "Double-moon nights", "correct": false, "explanation": "True, but not the only one." },
+        { "key": "C", "text": "Mineral fog", "correct": false, "explanation": "True, but not the only one." },
+        { "key": "D", "text": "All of the above", "correct": true, "explanation": "The notes list all three as growth boosters." }
+      ],
+      "summary": "Warm wind, double-moon nights and mineral fog all speed growth.",
+      "level": "recall",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/beta/reading-2/slides.pdf", "locator": "slide 7" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-beta-0004",
+      "topicIds": ["beta-skyvine-growth"],
+      "scenarioId": null,
+      "stem": "Choose the INCORRECT statement about skyvine growth.",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "Growth slows in still air", "correct": false, "explanation": "Correct statement: warm wind speeds growth, so still air slows it." },
+        { "key": "B", "text": "Mineral fog speeds growth", "correct": false, "explanation": "Correct statement, from the growth-booster list." },
+        { "key": "C", "text": "Skyvines grow fastest in total darkness", "correct": true, "explanation": "Incorrect statement: the notes say double-moon nights speed growth, so the vines need some light." },
+        { "key": "D", "text": "Tendrils drop in drought", "correct": false, "explanation": "Correct statement, from the drought slide." }
+      ],
+      "summary": "Skyvines need some light to grow fast.",
+      "level": "application",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/beta/reading-2/slides.pdf", "locator": "slides 7-8" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-gamma-0001",
+      "topicIds": ["gamma-ember-heat"],
+      "scenarioId": "sc-gamma-0001",
+      "stem": "Which structure in the figure has most likely cooled down?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "The cushion's outer fronds", "correct": false, "explanation": "The fronds carry heat; they don't make it." },
+        { "key": "B", "text": "The heat bulb (A)", "correct": true, "explanation": "The heat bulb makes the warmth, so cold air on it stops the warm glow." },
+        { "key": "C", "text": "The tray", "correct": false, "explanation": "The tray isn't part of the moss." },
+        { "key": "D", "text": "The cold vent", "correct": false, "explanation": "The vent is the cause, not a moss structure." }
+      ],
+      "summary": "The heat bulb makes ember moss warm.",
+      "level": "clinical",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/gamma/reading-3/slides.pdf", "locator": "slide 2" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-gamma-0002",
+      "topicIds": ["gamma-ember-care"],
+      "scenarioId": "sc-gamma-0001",
+      "stem": "What should the keeper do first?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "Move the tray away from the vent", "correct": true, "explanation": "Removing the cold source comes first in the care steps." },
+        { "key": "B", "text": "Water the moss twice", "correct": false, "explanation": "Water doesn't fix a cold heat bulb." },
+        { "key": "C", "text": "Cut off the heat bulbs", "correct": false, "explanation": "That would stop the glow for good." },
+        { "key": "D", "text": "Add mineral fog", "correct": false, "explanation": "Mineral fog helps skyvines, not ember moss." }
+      ],
+      "summary": "First remove the cold source.",
+      "level": "clinical",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/gamma/reading-3/slides.pdf", "locator": "slide 6" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-gamma-0003",
+      "topicIds": ["gamma-ember-care"],
+      "scenarioId": "sc-gamma-0001",
+      "stem": "After the tray is moved, how long until the warm glow returns, according to the notes?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "At once", "correct": false, "explanation": "The bulb has to rewarm first." },
+        { "key": "B", "text": "After a full year", "correct": false, "explanation": "Far too long; the notes give one night." },
+        { "key": "C", "text": "By the next night", "correct": true, "explanation": "The notes say the bulb rewarms within a day." },
+        { "key": "D", "text": "Never", "correct": false, "explanation": "The damage can be undone." }
+      ],
+      "summary": "The glow returns by the next night.",
+      "level": "clinical",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/gamma/reading-3/notes-part-2.txt", "locator": "part 2, \"back by the next night\"" }],
+      "status": "verified"
+    },
+    {
+      "id": "q-gamma-0004",
+      "topicIds": ["gamma-ember-heat"],
+      "scenarioId": null,
+      "stem": "What colour is the ember moss glow at its hottest?",
+      "figure": null,
+      "type": "single",
+      "options": [
+        { "key": "A", "text": "Red", "correct": false, "explanation": "Red is the cooler glow on the slide." },
+        { "key": "B", "text": "Orange", "correct": false, "explanation": "Orange is the middle of the range." },
+        { "key": "C", "text": "Green", "correct": false, "explanation": "Green is the glowroot's colour, not the moss's." },
+        { "key": "D", "text": "White", "correct": true, "explanation": "The slide says white; the notes say pale yellow." }
+      ],
+      "summary": "Hottest glow: white (the sources disagree).",
+      "level": "recall",
+      "origin": "generated",
+      "sources": [{ "file": "source/sample/gamma/reading-3/slides.pdf", "locator": "slide 3" }],
+      "status": "unconfirmed",
+      "preflag": { "reason": "unclear", "note": "The sample slide says white, but the sample notes say pale yellow." }
+    }
+  ]
+}

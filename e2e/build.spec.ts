@@ -1,0 +1,158 @@
+import { expect, test, type Page } from '@playwright/test';
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { makePack } from '../test/makePack';
+import { drillFlow, importPack, SAMPLE_PACK, skipFolderSetup } from './flows';
+
+// The built app opened straight from disk (file://), from a temporary copy of dist/.
+// The build holds no pack: each test imports the synthetic sample pack, as a user would.
+const COPY = mkdtempSync(path.join(tmpdir(), 'studyapp-build-'));
+copyFileSync('dist/index.html', path.join(COPY, 'index.html'));
+const APP = pathToFileURL(path.join(COPY, 'index.html')).href;
+const sample = JSON.parse(readFileSync(SAMPLE_PACK, 'utf8'));
+
+/** Block everything except file:// so any network dependency fails the test. */
+async function offline(page: Page) {
+  await skipFolderSetup(page);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.route(/^(?!file:)/, (route) => route.abort());
+  return errors;
+}
+
+test('dist is one self-contained index.html', () => {
+  expect(readdirSync('dist')).toEqual(['index.html']);
+  const html = readFileSync('dist/index.html', 'utf8');
+  const refs = [...html.matchAll(/<(?:script|link|img)\b[^>]*?\b(?:src|href)="([^"]*)"/g)].map((m) => m[1]);
+  expect(refs.filter((r) => !r.startsWith('data:') && !r.startsWith('#'))).toEqual([]);
+});
+
+test('with no pack imported, the app says so and points to import', async ({ page }) => {
+  const errors = await offline(page);
+  await page.goto(APP);
+  await expect(page.getByText('No question pack loaded')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('drill works from file:// with the network blocked', async ({ page }) => {
+  const errors = await offline(page);
+  await drillFlow(page, APP);
+  expect(errors).toEqual([]);
+});
+
+test('mock exam starts with the blueprint question count', async ({ page }) => {
+  const errors = await offline(page);
+  await importPack(page, APP);
+  await page.goto(APP + '#/mock');
+  await page.getByRole('button', { name: 'Start mock exam' }).click();
+  const confirmed = sample.questions.filter((q: { status: string }) => q.status !== 'unconfirmed').length;
+  const expected = Math.min(sample.examBlueprint.questionCount, confirmed);
+  await expect(page.getByTestId('mock-position')).toHaveText(`Question 1 of ${expected}`);
+  await expect(page.getByTestId('timer')).toBeVisible();
+  // Answer one, reload, and the exam resumes with the answer kept.
+  await page.keyboard.press('b');
+  await page.reload();
+  await expect(page.getByTestId('mock-position')).toHaveText(`Question 1 of ${expected}`);
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Submit exam' }).click();
+  await page.getByRole('button', { name: 'Yes, submit' }).click();
+  await expect(page.getByTestId('mock-score')).toContainText(`/ ${expected}`);
+  expect(errors).toEqual([]);
+});
+
+test('backup download works', async ({ page }) => {
+  await offline(page);
+  await page.goto(APP + '#/data');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download backup' }).click();
+  const file = await (await download).path();
+  const backup = JSON.parse(readFileSync(file, 'utf8'));
+  expect(backup.kind).toBe('studyapp-backup');
+});
+
+test('perf: 600-question pack imports and stays fast', async ({ page }) => {
+  await offline(page);
+  const big = { ...makePack({ alpha: 250, beta: 150, gamma: 200 }, { groups: 10 }), packId: 'perf-pack', title: 'Perf pack' };
+  const file = path.join(tmpdir(), 'perf-pack.json');
+  writeFileSync(file, JSON.stringify(big));
+  await importPack(page, APP, file, 600);
+
+  const t0 = Date.now();
+  await page.goto(APP + '#/');
+  await expect(page.getByText('Welcome back')).toBeVisible();
+  const dashboardMs = Date.now() - t0;
+  expect(dashboardMs).toBeLessThan(1000);
+
+  await page.goto(APP + '#/drill');
+  await page.getByRole('button', { name: /^All \(600\)/ }).click();
+  await page.getByRole('button', { name: /Start drill/ }).click();
+  const times: number[] = [];
+  for (let i = 1; i <= 10; i++) {
+    await expect(page.getByTestId('drill-position')).toContainText(`Question ${i} of 600`);
+    await page.keyboard.press('a');
+    await expect(page.getByTestId('feedback')).toBeVisible();
+    const s = Date.now();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('drill-position')).toContainText(`Question ${i + 1} of 600`);
+    times.push(Date.now() - s);
+  }
+  const avg = times.reduce((a, b) => a + b, 0) / times.length;
+  console.log(`perf: dashboard ${dashboardMs} ms, drill next avg ${Math.round(avg)} ms`);
+  expect(avg).toBeLessThan(100);
+});
+
+test('an embedded (data: URI) figure from an imported pack renders from file://', async ({ page }) => {
+  await offline(page);
+  await importPack(page, APP);
+  const sc = sample.scenarios.find((s: { figure: unknown }) => s.figure);
+  const q = sample.questions.find((x: { scenarioId: string | null }) => x.scenarioId === sc.id);
+
+  await page.goto(APP + '#/drill?topics=' + q.topicIds[0]);
+  await page.getByRole('button', { name: /^All \(/ }).click();
+  await page.getByRole('button', { name: /Start drill/ }).click();
+  // Step through the drill (order is random), waiting for each question to render, until the figure shows.
+  for (let i = 1; i <= 12; i++) {
+    await expect(page.getByTestId('drill-position')).toContainText(`Question ${i} of`);
+    await expect(page.getByTestId('stem')).toBeVisible();
+    if (await page.locator('figure img').count()) break;
+    await page.keyboard.press('a');
+    await expect(page.getByTestId('feedback')).toBeVisible();
+    await page.keyboard.press('Enter');
+  }
+  const img = page.locator('figure img');
+  await expect(img).toHaveCount(1);
+  expect(await img.evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth)).toBeGreaterThan(0);
+  expect(await img.getAttribute('src')).toMatch(/^data:image\/svg\+xml;base64,/);
+});
+
+test('pre-flagged questions are seeded into Flags', async ({ page }) => {
+  await offline(page);
+  await importPack(page, APP);
+  const unconfirmed = sample.questions.filter((q: { status: string }) => q.status === 'unconfirmed');
+  expect(unconfirmed.length).toBeGreaterThan(0);
+
+  await page.goto(APP + '#/flags');
+  await expect(page.getByTestId('flag-item')).toHaveCount(unconfirmed.length);
+  await expect(page.getByTestId('flag-item').first()).toContainText('Pre-flagged');
+  await page.getByRole('button', { name: 'Open question' }).first().click();
+  await expect(page.getByTestId('unconfirmed')).toContainText('Unconfirmed — check with your notes or instructor.');
+});
+
+test('from file://, a second tab is blocked until "Use this tab instead" (Web Locks)', async ({ context }) => {
+  const a = await context.newPage();
+  await offline(a);
+  await importPack(a, APP);
+  await a.goto(APP);
+  await expect(a.getByText('Welcome back')).toBeVisible();
+  expect(await a.evaluate(() => typeof navigator.locks?.request)).toBe('function');
+
+  const b = await context.newPage();
+  await offline(b);
+  await b.goto(APP);
+  await expect(b.getByTestId('other-tab')).toBeVisible();
+  await b.getByRole('button', { name: 'Use this tab instead' }).click();
+  await expect(b.getByText('Welcome back')).toBeVisible();
+  await expect(a.getByTestId('other-tab')).toBeVisible();
+});

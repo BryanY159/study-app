@@ -1,0 +1,49 @@
+{
+  "name": "@study/pack",
+  "description": "Generic study app (quiz engine). This package also exports the content-pack schema and validator for content repos.",
+  "private": true,
+  "version": "1.4.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/pack/index.ts",
+    "./engine": "./src/engine/public.ts"
+  },
+  "files": [
+    "src/pack",
+    "src/engine",
+    "!src/**/*.test.ts"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "e2e": "npm run build && playwright test",
+    "leak-guard": "tsx scripts/leak-guard.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@playwright/test": "^1.64.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "fake-indexeddb": "^6.2.7",
+    "idb-keyval": "^6.3.0",
+    "jsdom": "^30.1.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-singlefile": "^2.3.4",
+    "vitest": "^5.1.0"
+  }
+}
