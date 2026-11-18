@@ -5,6 +5,7 @@ import { useBreakpoint } from '../useBreakpoint';
 
 const LINKS = [
   { href: '#/', label: 'Dashboard', match: (p: string) => p === '/' },
+  { href: '#/cards', label: 'Cards', match: (p: string) => p.startsWith('/cards') },
   { href: '#/drill', label: 'Drill', match: (p: string) => p.startsWith('/drill') },
   { href: '#/mock', label: 'Mock exam', match: (p: string) => p.startsWith('/mock') },
 ];
@@ -46,6 +47,7 @@ export function Header({ route }: { route: Route }) {
 
 const TAB_ICONS = {
   home: 'M3 11l9-8 9 8M5 10v10h14V10',
+  cards: 'M4 6h12v14H4zM8 3h12v14',
   drill: 'M9 11l3 3 8-8M20 12v7H4V5h11',
   mock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
   more: 'M4 6h16M4 12h16M4 18h16',
@@ -57,7 +59,7 @@ const Icon = ({ d }: { d: string }) => (
   </svg>
 );
 
-/** Phone only: Home · Drill · Mock · More (Flagged, History & data, Install help). */
+/** Phone only: Home · Cards · Drill · Mock · More (Flagged, History & data, Install help). */
 export function TabBar({ route }: { route: Route }) {
   const { flags } = useApp();
   const [more, setMore] = useState(false);
@@ -78,6 +80,7 @@ export function TabBar({ route }: { route: Route }) {
     <>
       <nav className="tabbar" aria-label="Main" data-testid="tabbar">
         {tab('#/', 'Home', TAB_ICONS.home, p === '/' || p === '')}
+        {tab('#/cards', 'Cards', TAB_ICONS.cards, p.startsWith('/cards'))}
         {tab('#/drill', 'Drill', TAB_ICONS.drill, p.startsWith('/drill'))}
         {tab('#/mock', 'Mock', TAB_ICONS.mock, p.startsWith('/mock'))}
         <button type="button" className={inMore ? 'active' : ''} aria-haspopup="dialog" aria-expanded={more} onClick={() => setMore(true)}>

@@ -135,3 +135,27 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - `test/fixtures/sample-pack.json` gets 10 invented cards across all 6 topics: 3 term, 3 concept, 2 cloze, and **1 diagram** (an inline SVG `data:` image of 598 bytes with labels A/B/C, asking about B), plus 1 `unconfirmed` card with a preflag. 8 cards have `relatedQuestionIds`. (The diff is large only because the file was re-serialized.)
 - The fixture still parses with zero errors and warnings. A new test checks the four types, the diagram label and the unconfirmed card. The answer-letter test now drops the cards, since it replaces the questions they point at.
 - Gate: unit 247, e2e 104 + 13 skipped.
+### M6.5–M6.6 Deck setup, card review and summary — done (built together: setup has to start a real session)
+- **Deck setup** (`#/cards`, plus the **Cards** tab on phone and a "Cards" link in the top nav):
+  - topics by module with **due · new · learned/total** per topic;
+  - modes **Due + new** (default) / **Due only** / **Cram** (practice: the schedule never changes);
+  - a card-type filter; the start button states the counts ("Start · 1 due + 8 new");
+  - Start is disabled with a reason when there's nothing to do;
+  - the daily new-card limit is set on the Data page ("New cards per day").
+- **Review** (`#/cards/run`, a session screen, so no update banner):
+  - `CardFace` shows the type badge, topic, image with positioned label markers (the asked-about label highlighted), cloze gaps, and answer plus source on the back;
+  - flip by tap, Space or Enter (with an animation, off under reduced motion); an `aria-live` region announces the answer;
+  - **Again / Got it** buttons say where the card goes ("box 3 · in 3 days"); keys 1/2 or ←/→; a **swipe** only after flipping; buttons sit in the bottom bar on phone;
+  - Again re-queues after 3 other cards; **Undo** (button, or Z) until the next rating;
+  - **Flag** saves a card flag (`itemType: 'card'`); End session.
+- Layouts: phone full width; tablet centered, max 640 px; laptop with a side panel of session counts and the shortcuts.
+- **Summary:** cards reviewed, Got it on the first try %, still in box 1, the box spread, the next due day and its count, "Drill these topics", "Review n again" (a cram of the box-1 cards), Done.
+- **Flags generalized** (part of M6.8): `flagState`, `editableFlag` and `FlagDialog` take an item (question or card). The Flags screen filters All / Questions / Cards and opens a card's face.
+- **Fixed during e2e:**
+  - the swipe start was kept in React state, so quick pointer sequences were lost; it's in a ref now;
+  - the diagram SVG collapsed to 0 px wide in WebKit; the image is now sized explicitly.
+- Tests:
+  - unit: the swipe recognizer;
+  - UI (`cards.test.tsx`): setup counts per topic, the start label per mode, the type filter and empty reason, the daily limit (2 of 3 left), flip / rate by key and button (box 2 tomorrow), keys ignored before flipping, the aria-live answer, Again back after 3 cards, Undo (state fresh again, review tombstoned, Undo gone), cram leaves the schedule alone, a card flag, and the summary numbers;
+  - e2e (`cards.spec.ts`): phone tap, swipe before and after flipping, and bottom-bar buttons; a whole desktop session by keyboard into the summary (10 reviewed, 90%); the tablet diagram (image loaded, 3 labels, B highlighted, ≤ 640 px); reduced motion means no animation; Cards added to the responsive checks.
+- Gate: unit 257, e2e 110 + 19 skipped.

@@ -1,4 +1,4 @@
-import type { Pack } from '../pack/schema';
+import { cardsOf, type Pack } from '../pack/schema';
 import type { Flag, FlagReason } from '../storage/docs';
 import { correctKeys } from './scoring';
 
@@ -19,6 +19,13 @@ export type FlagState = 'open' | 'resolved' | 'missing';
  */
 export function flagState(flag: Flag, packs: readonly Pack[]): FlagState {
   const pack = packs.find((p) => p.packId === flag.packId);
+  if (flag.itemType === 'card') {
+    const c = pack ? cardsOf(pack).find((x) => x.id === flag.questionId) : undefined;
+    if (!pack || !c) return 'missing';
+    // Cards have no fixedIn; a card pre-flag is settled once a newer pack no longer ships it as unconfirmed.
+    if (flag.source === 'preflag' && pack.version > flag.packVersion && c.status !== 'unconfirmed') return 'resolved';
+    return 'open';
+  }
   const q = pack?.questions.find((x) => x.id === flag.questionId);
   if (!pack || !q) return 'missing';
   // Packs from before v1.4.1 have no fixedIn: treat the current version as the fix.
@@ -29,8 +36,8 @@ export function flagState(flag: Flag, packs: readonly Pack[]): FlagState {
 }
 
 /** The flag the Flag button edits. A resolved flag is done with: flagging the question again starts a new one. */
-export function editableFlag(flags: readonly Flag[], packs: readonly Pack[], packId: string, questionId: string): Flag | undefined {
-  return flags.find((f) => f.packId === packId && f.questionId === questionId && flagState(f, packs) !== 'resolved');
+export function editableFlag(flags: readonly Flag[], packs: readonly Pack[], packId: string, questionId: string, itemType: Flag['itemType'] = 'question'): Flag | undefined {
+  return flags.find((f) => f.packId === packId && f.itemType === itemType && f.questionId === questionId && flagState(f, packs) !== 'resolved');
 }
 
 /**

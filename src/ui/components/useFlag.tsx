@@ -13,7 +13,7 @@ export function useFlag(q: Question | undefined, mode: 'drill' | 'mock' | 'revie
   const dialog =
     open && q ? (
       <FlagDialog
-        question={q}
+        item={{ kind: 'question', id: q.id, text: q.stem }}
         initial={existing ? { reason: existing.reason, comment: existing.comment } : undefined}
         onClose={() => setOpen(false)}
         onSave={(reason, comment) => {

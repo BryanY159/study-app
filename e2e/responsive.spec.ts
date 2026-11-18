@@ -7,6 +7,7 @@ import { importPack } from './flows';
 const SCREENS: [string, string][] = [
   ['#/', 'Welcome back'],
   ['#/drill', 'Set up a drill'],
+  ['#/cards', 'Flashcards'],
   ['#/mock', 'Mock exam'],
   ['#/flags', 'Flagged questions'],
   ['#/data', 'History & data'],

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Question } from '../../pack/schema';
 import { FLAG_REASONS, type FlagReason } from '../../storage/docs';
 
 const REASON_TEXT: Record<FlagReason, string> = {
@@ -10,14 +9,22 @@ const REASON_TEXT: Record<FlagReason, string> = {
   other: 'Other',
 };
 
+/** What is being flagged: a question or a flashcard. */
+export interface FlagItem {
+  kind: 'question' | 'card';
+  id: string;
+  /** The question stem or the card front, shortened in the dialog. */
+  text: string;
+}
+
 interface Props {
-  question: Question;
+  item: FlagItem;
   initial?: { reason: FlagReason; comment: string };
   onSave: (reason: FlagReason, comment: string) => void;
   onClose: () => void;
 }
 
-export function FlagDialog({ question, initial, onSave, onClose }: Props) {
+export function FlagDialog({ item, initial, onSave, onClose }: Props) {
   const [reason, setReason] = useState<FlagReason>(initial?.reason ?? 'answer-wrong');
   const [comment, setComment] = useState(initial?.comment ?? '');
   const first = useRef<HTMLInputElement>(null);
@@ -44,13 +51,13 @@ export function FlagDialog({ question, initial, onSave, onClose }: Props) {
         }}
       >
         <div className="spread">
-          <h2 id="flag-title">{initial ? 'Edit flag' : 'Flag this question'}</h2>
+          <h2 id="flag-title">{initial ? 'Edit flag' : item.kind === 'card' ? 'Flag this card' : 'Flag this question'}</h2>
           <button type="button" className="btn small" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
         <p className="muted small">
-          {question.id} · {question.stem.length > 90 ? question.stem.slice(0, 90) + '…' : question.stem}
+          {item.id} · {item.text.length > 90 ? item.text.slice(0, 90) + '…' : item.text}
         </p>
         <fieldset>
           <legend>What's wrong?</legend>

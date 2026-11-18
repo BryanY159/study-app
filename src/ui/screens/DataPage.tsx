@@ -74,6 +74,8 @@ export function DataPage() {
         {sync.panel}
       </section>
 
+      <NewCardsSetting />
+
       <section className="card stack">
         <h2>Question packs</h2>
         {packs.map((p) => (
@@ -164,5 +166,34 @@ function DeviceLabel() {
         {meta.deviceLabel ? 'Rename' : 'Name this device'}
       </button>
     </div>
+  );
+}
+
+/** FR-13: how many new flashcards a day (device-local). */
+function NewCardsSetting() {
+  const { progress, setNewCardsPerDay } = useApp();
+  const [draft, setDraft] = useState(String(progress.settings.newCardsPerDay));
+  const value = Number(draft);
+  const valid = draft.trim() !== '' && Number.isInteger(value) && value >= 0 && value <= 500;
+  return (
+    <section className="card stack" data-testid="cards-settings">
+      <h2>Flashcards</h2>
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (valid) setNewCardsPerDay(value);
+        }}
+      >
+        <label className="row" style={{ gap: 8 }}>
+          <span>New cards per day</span>
+          <input className="text-input" style={{ width: 96 }} type="number" inputMode="numeric" min={0} max={500} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="New cards per day" />
+        </label>
+        <button type="submit" className="btn small" disabled={!valid || value === progress.settings.newCardsPerDay}>
+          Save limit
+        </button>
+      </form>
+      <p className="small muted">Due cards always come first; this caps how many new cards a session adds each day.</p>
+    </section>
   );
 }
