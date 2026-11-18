@@ -22,8 +22,9 @@ async function offline(page: Page) {
   return errors;
 }
 
-test('dist is one self-contained index.html', () => {
-  expect(readdirSync('dist')).toEqual(['index.html']);
+test('dist is one self-contained index.html (plus the storage spike page)', () => {
+  expect(readdirSync('dist').sort()).toEqual(['index.html', 'spike']);
+  expect(readdirSync('dist/spike').sort()).toEqual(['manifest.webmanifest', 'storage.html']);
   const html = readFileSync('dist/index.html', 'utf8');
   const refs = [...html.matchAll(/<(?:script|link|img)\b[^>]*?\b(?:src|href)="([^"]*)"/g)].map((m) => m[1]);
   expect(refs.filter((r) => !r.startsWith('data:') && !r.startsWith('#'))).toEqual([]);

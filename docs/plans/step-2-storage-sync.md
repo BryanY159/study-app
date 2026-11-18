@@ -1,6 +1,8 @@
 # Plan: build step 2 — storage on IndexedDB, manual sync
 
-Status: **DRAFT, waiting for review.** No code has been written for this step.
+Status: **APPROVED 2026-11-17**, D1–D6 as proposed, with three confirmations
+(tombstones across devices, a spike manifest, migrate-once with no later writes to
+the old keys). See §12.
 Scope: all saved data moves to IndexedDB, the data-folder code goes away, and a
 sync file (export, then import with Merge or Replace) carries data between devices.
 Release: `v1.5.0`, tagged and deployed to GitHub Pages.
@@ -79,6 +81,9 @@ On startup, before loading docs, `migrateLegacy()` runs once:
 4. Copy any `studyapp:set-aside:*` entries into `setAside`.
 5. Set `meta.legacyMigratedAt`. **The `localStorage` keys are not deleted** in this
    release; they are a free fallback copy. Step 8 (release) removes them.
+6. **Nothing writes to the old keys after this.** `BrowserDataStore` is reduced to
+   a read-only `readLegacy()` helper; no code path calls `localStorage.setItem` with
+   a `studyapp:` key.
 
 A failure in steps 2–4 leaves `legacyMigratedAt` unset, so it retries next launch.
 
@@ -116,7 +121,11 @@ import runs inside the tab that holds the lock, like every other write.
   - IndexedDB already has data + `localStorage` has more → merged, nothing lost;
   - corrupt `localStorage` progress → quarantined, flags still migrated;
   - newer-version `localStorage` data → not migrated, notice shown;
-  - `localStorage` keys are still there afterwards.
+  - `localStorage` keys are still there afterwards;
+  - **no writes to the old keys:** after migration, answering a question, flagging,
+    importing a sync file and restoring leave every `studyapp:*` `localStorage` value
+    byte-identical (a spy on `Storage.prototype.setItem` / `removeItem` sees no
+    `studyapp:` key), and a second launch doesn't re-read them.
 - `persist`: granted → "persistent"; denied → "may be cleared"; missing API → neutral line; called again on next launch only while not granted.
 - Startup error screen: the rescue download reads IndexedDB; when IndexedDB is
   blocked it falls back to `localStorage` (ported C-4 test).
@@ -270,7 +279,11 @@ The existing restore flow, unchanged in behavior:
 - **Order independence of records:** merge A then B and B then A → same attempt IDs, session IDs and flags.
 - **Cross-device restore:** device A restored a backup yesterday; its sync file merged into device B keeps all of B's older answers (and the other way round).
 - **Device-local:** an incoming newer doc doesn't change this device's `settings` or its `activeMock`.
-- Tombstone: flag removed on this device, still present in the incoming file → stays removed; changed on the other device after the removal → comes back.
+- **Tombstones across devices (both directions):** a flag removed on device A is
+  still present in device B's file → after Merge on A it stays removed; and A's file
+  (with the tombstone) merged into B removes it there. Changed on the other device
+  after the removal → it comes back. This holds although `restoredAt` is ignored
+  for sync (D2).
 - Replace: safety download first, Cancel changes nothing, confirm replaces and stamps `restoredAt` (ported C-3 tests).
 - Refusals: invalid JSON, wrong `kind`, `formatVersion: 3`, a doc with `schemaVersion: 2` → error and unchanged data.
 - UI (`ui.test.tsx`): Merge is preselected, the preview shows the counts, Merge writes and shows a done message; import is blocked during a mock.
@@ -343,10 +356,12 @@ survives closing it, restarting the phone, and a week without opening it.
 the home screen in standalone mode, which needs `apple-mobile-web-app-capable`.
 That's step 3 (PWA) for the app itself. So the spike uses its own tiny page.
 
-**Spike page:** `public/spike-storage.html` (Vite copies `public/` into `dist/`
-untouched, so the single-file app build isn't affected). Plain HTML + inline
-script, no app code, no content:
-- iOS standalone meta tags and a title;
+**Spike page:** `public/spike/storage.html` plus `public/spike/manifest.webmanifest`
+(Vite copies `public/` into `dist/` untouched, so the single-file app build isn't
+affected). Plain HTML + inline script, no app code, no content:
+- its own minimal manifest (`name`, `short_name`, `start_url: ./storage.html`,
+  `scope: ./`, `display: standalone`), so iOS opens it from the home screen as a
+  standalone app with its own storage; plus the iOS standalone meta tags;
 - on open: writes a numbered "visit" record with a timestamp to IndexedDB **and**
   `localStorage`, reads all records back, and lists them;
 - shows `navigator.storage.persisted()`, the result of `persist()`, and
@@ -356,7 +371,7 @@ script, no app code, no content:
 
 **`spike/ios-storage.md`** (in this repo, generic) holds the steps for you to run
 on the iPhone and a table for the results:
-1. In Safari open `https://bryany159.github.io/study-app/spike-storage.html`.
+1. In Safari open `https://bryany159.github.io/study-app/spike/storage.html`.
 2. Share → Add to Home Screen. Open it from the home screen; confirm it says standalone.
 3. Note visit #1 and the persist result.
 4. Swipe the app away, reopen → visit #2 listed with #1.
@@ -454,4 +469,11 @@ Each step ends green on `typecheck`, `test`, `e2e`, `leak-guard`, with one commi
 
 ## 13. Execution log
 
-(empty until the plan is approved)
+- **2026-11-17, §10 step 1 (spike page):**
+  - `public/spike/storage.html` + `manifest.webmanifest`, `spike/ios-storage.md`,
+    `e2e/spike.spec.ts` (2 tests, `preview` project).
+  - `build.spec.ts` now expects `dist/` = `index.html` + `spike/` (the app itself is
+    still one self-contained file).
+  - `package.json` 1.4.2. `@study/pack` exports unchanged, so the content repo needs no change.
+  - Typecheck clean, unit 117/117, e2e 15/15, leak guard clean on sources and `dist/`.
+  - Waiting for the go-ahead to push `main` and tag `v1.4.2`.

@@ -7,7 +7,7 @@ export default defineConfig({
   use: { browserName: 'chromium', baseURL: 'http://localhost:4173' },
   projects: [
     // App served by `vite preview` (the same single-file build).
-    { name: 'preview', testMatch: /(drill|folder|tabs)\.spec\.ts/ },
+    { name: 'preview', testMatch: /(drill|folder|tabs|spike)\.spec\.ts/ },
     // Built dist/index.html opened straight from disk (file://).
     { name: 'file', testMatch: /build\.spec\.ts/ },
   ],

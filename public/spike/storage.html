@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Storage spike</title>
+    <!-- Its own manifest (display: standalone), so iOS runs it from the home screen as an app with its own storage. -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Spike" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#fffbea" />
+    <style>
+      :root { color-scheme: light dark; --bg: #fffbea; --fg: #1f1d17; --muted: #6b665a; --line: #e4dcc0; --ok: #1d6b35; --bad: #a3261b; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #1c1a14; --fg: #f3efe2; --muted: #b0a993; --line: #3d382a; --ok: #7fd49a; --bad: #ff8a7a; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 system-ui, -apple-system, sans-serif; }
+      main { max-width: 640px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px 32px; }
+      h1 { font-size: 1.4rem; margin: 0 0 4px; }
+      h2 { font-size: 1.05rem; margin: 20px 0 6px; }
+      p { margin: 4px 0; }
+      .muted { color: var(--muted); font-size: 0.9rem; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+      dt { color: var(--muted); }
+      dd { margin: 0; overflow-wrap: anywhere; }
+      .ok { color: var(--ok); font-weight: 600; }
+      .bad { color: var(--bad); font-weight: 600; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+      th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+      button { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: inherit; margin: 8px 8px 0 0; }
+      button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+      textarea { width: 100%; min-height: 8em; font: 12px/1.4 ui-monospace, monospace; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Storage spike</h1>
+      <p class="muted">Each time this page opens it saves one numbered visit in two places (IndexedDB and localStorage) and lists every visit it still has. No data leaves the device.</p>
+
+      <h2>This visit</h2>
+      <dl>
+        <dt>Visit</dt><dd data-testid="visit-number">…</dd>
+        <dt>Mode</dt><dd data-testid="mode">…</dd>
+        <dt>Persisted before</dt><dd data-testid="persisted-before">…</dd>
+        <dt>persist() result</dt><dd data-testid="persist-result">…</dd>
+        <dt>Storage estimate</dt><dd data-testid="estimate">…</dd>
+        <dt>Browser</dt><dd data-testid="ua">…</dd>
+      </dl>
+
+      <h2>Visits in IndexedDB</h2>
+      <table><thead><tr><th>#</th><th>Saved at</th><th>Mode</th></tr></thead><tbody data-testid="idb-visits"></tbody></table>
+
+      <h2>Visits in localStorage</h2>
+      <table><thead><tr><th>#</th><th>Saved at</th><th>Mode</th></tr></thead><tbody data-testid="ls-visits"></tbody></table>
+
+      <p data-testid="status" class="muted"></p>
+
+      <button type="button" class="primary" id="copy">Copy results</button>
+      <button type="button" id="clear">Clear spike data</button>
+      <textarea id="out" readonly hidden aria-label="Results"></textarea>
+    </main>
+
+    <script>
+      (async () => {
+        const $ = (id) => document.querySelector(`[data-testid="${id}"]`);
+        const status = $('status');
+        const LS_KEY = 'spike:visits';
+        const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+        const mode = standalone ? 'standalone (home screen)' : 'browser tab';
+        const now = new Date().toISOString();
+
+        // --- IndexedDB: one store, auto-increment keys ---
+        const openDb = () =>
+          new Promise((resolve, reject) => {
+            const req = indexedDB.open('spike-storage', 1);
+            req.onupgradeneeded = () => req.result.createObjectStore('visits', { autoIncrement: true });
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+        const tx = (db, kind, run) =>
+          new Promise((resolve, reject) => {
+            const t = db.transaction('visits', kind);
+            const req = run(t.objectStore('visits'));
+            t.oncomplete = () => resolve(req && req.result);
+            t.onerror = () => reject(t.error);
+          });
+
+        let idbVisits = [];
+        let idbError = '';
+        try {
+          const db = await openDb();
+          const before = await tx(db, 'readonly', (s) => s.getAll());
+          await tx(db, 'readwrite', (s) => s.add({ n: before.length + 1, at: now, mode }));
+          idbVisits = await tx(db, 'readonly', (s) => s.getAll());
+          db.close();
+        } catch (e) {
+          idbError = `IndexedDB failed: ${e && e.message ? e.message : e}`;
+        }
+
+        // --- localStorage ---
+        let lsVisits = [];
+        let lsError = '';
+        try {
+          const prev = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+          lsVisits = [...prev, { n: prev.length + 1, at: now, mode }];
+          localStorage.setItem(LS_KEY, JSON.stringify(lsVisits));
+        } catch (e) {
+          lsError = `localStorage failed: ${e && e.message ? e.message : e}`;
+        }
+
+        // --- Storage manager ---
+        const sm = navigator.storage;
+        let persistedBefore = 'not reported';
+        let persistResult = 'API not available';
+        let estimate = 'not reported';
+        try {
+          if (sm && sm.persisted) persistedBefore = String(await sm.persisted());
+          if (sm && sm.persist) persistResult = String(await sm.persist());
+          if (sm && sm.estimate) {
+            const e = await sm.estimate();
+            const mb = (x) => (x / 1024 / 1024).toFixed(1) + ' MB';
+            estimate = `${mb(e.usage || 0)} used of ${mb(e.quota || 0)}`;
+          }
+        } catch (e) {
+          persistResult = `error: ${e && e.message ? e.message : e}`;
+        }
+
+        // --- Render ---
+        const mark = (v) => (v === 'true' ? `<span class="ok">yes</span>` : v === 'false' ? `<span class="bad">no</span>` : v);
+        $('visit-number').textContent = String(idbVisits.length || lsVisits.length);
+        $('mode').innerHTML = standalone ? `<span class="ok">${mode}</span>` : `<span class="bad">${mode}</span>`;
+        $('persisted-before').innerHTML = mark(persistedBefore);
+        $('persist-result').innerHTML = mark(persistResult);
+        $('estimate').textContent = estimate;
+        $('ua').textContent = navigator.userAgent;
+        const rows = (list) => list.map((v) => `<tr><td>${v.n}</td><td>${new Date(v.at).toLocaleString()}</td><td>${v.mode}</td></tr>`).join('');
+        $('idb-visits').innerHTML = rows(idbVisits);
+        $('ls-visits').innerHTML = rows(lsVisits);
+        const gap = (list) => list.some((v, i) => v.n !== i + 1);
+        status.textContent = [
+          idbError,
+          lsError,
+          gap(idbVisits) || gap(lsVisits) ? 'Some visit numbers are missing: data was lost at some point.' : '',
+          idbVisits.length !== lsVisits.length ? `IndexedDB has ${idbVisits.length} visits, localStorage has ${lsVisits.length}.` : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        const report = () =>
+          [
+            `Storage spike results, ${new Date().toLocaleString()}`,
+            `Mode: ${mode}`,
+            `Persisted before: ${persistedBefore}; persist(): ${persistResult}`,
+            `Estimate: ${estimate}`,
+            `Browser: ${navigator.userAgent}`,
+            `IndexedDB visits (${idbVisits.length}):`,
+            ...idbVisits.map((v) => `  #${v.n} ${v.at} ${v.mode}`),
+            `localStorage visits (${lsVisits.length}):`,
+            ...lsVisits.map((v) => `  #${v.n} ${v.at} ${v.mode}`),
+            status.textContent ? `Notes: ${status.textContent}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n');
+
+        document.getElementById('copy').addEventListener('click', async () => {
+          const out = document.getElementById('out');
+          out.value = report();
+          out.hidden = false;
+          try {
+            await navigator.clipboard.writeText(out.value);
+            status.textContent = 'Copied. Paste it into the results table.';
+          } catch {
+            out.select();
+            status.textContent = 'Select the text below and copy it.';
+          }
+        });
+
+        document.getElementById('clear').addEventListener('click', async () => {
+          if (!confirm('Delete every saved visit and start the count again?')) return;
+          localStorage.removeItem(LS_KEY);
+          await new Promise((r) => {
+            const req = indexedDB.deleteDatabase('spike-storage');
+            req.onsuccess = req.onerror = req.onblocked = () => r();
+          });
+          location.reload();
+        });
+
+        document.body.dataset.ready = 'true';
+      })();
+    </script>
+  </body>
+</html>
