@@ -79,6 +79,6 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - The phone sheet no longer repeats the "Questions" title. Visual check in the browser pane at phone size, light and dark: Home, and the mock grid sheet.
 - `architecture.md`: a new "Layout and theming" section.
 - e2e `screens-layout.spec.ts`: mock results and flags have no sideways scroll at any size and their actions are visible buttons; on phone, the Replace confirmation shows stacked rows with labels.
-- Unit 190, e2e 98 passed + 10 skipped.
+- Unit 190, e2e 98 passed + 13 skipped (Chromium-only or single-viewport tests in other projects).
 
 **Step 4 complete.**
