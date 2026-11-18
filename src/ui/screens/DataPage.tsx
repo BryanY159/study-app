@@ -58,6 +58,9 @@ export function DataPage() {
           {(persistence === 'unknown' || persistence === null) && "Storage: this browser didn't say whether it keeps this data. Export a sync file regularly to be safe."}
         </p>
         <DeviceLabel />
+        <p className="small">
+          <a href="#/install">Install the app</a> to use it offline from your Home Screen or app list.
+        </p>
         <p className="small muted" data-testid="last-export">
           {meta.lastExportAt ? `Last export from this device: ${new Date(meta.lastExportAt).toLocaleString()}.` : 'No sync file exported from this device yet.'}
         </p>

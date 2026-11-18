@@ -4,7 +4,7 @@ import { buildDrill, drillPool, type DrillFilter } from '../../engine/select';
 import type { PackIndex } from '../../engine/packIndex';
 import { useApp } from '../../state/AppProvider';
 import { navigate, type Route } from '../router';
-import { NoPack } from './NoPack';
+import { Welcome } from './Welcome';
 
 const COUNTS = [10, 20, 40] as const;
 
@@ -37,7 +37,7 @@ export function DrillSetup({ route }: { route: Route }) {
   const poolFor = (f: DrillFilter, ts: ReadonlySet<string>) => (ix ? drillPool(ix, attempts, { topicIds: ts, filter: f, count: 'all', excludeIds }) : []);
   const available = poolFor(filter, topics).length;
 
-  if (!ix) return <NoPack />;
+  if (!ix) return <Welcome />;
 
   const perTopic = (id: string) => poolFor(filter, new Set([id])).length;
   const toggle = (ids: string[], on: boolean) =>

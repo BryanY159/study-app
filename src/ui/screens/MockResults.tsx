@@ -6,14 +6,14 @@ import { KeyIdea, OptionFeedback, QuestionMeta, Stem } from '../components/Quest
 import { useFlag } from '../components/useFlag';
 import { barClass } from './Dashboard';
 import { formatClock } from './Mock';
-import { NoPack } from './NoPack';
+import { Welcome } from './Welcome';
 
 type Tab = 'all' | 'incorrect' | 'marked' | 'flagged';
 
 export function MockResults({ sessionId }: { sessionId: string }) {
   const { ix, progress, flags } = useApp();
   const [tab, setTab] = useState<Tab>('incorrect');
-  if (!ix) return <NoPack />;
+  if (!ix) return <Welcome />;
   const session = progress.sessions.find((s) => s.id === sessionId);
   if (!session) {
     return (

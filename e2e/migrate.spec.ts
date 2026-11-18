@@ -40,6 +40,6 @@ test('v1.4 data in localStorage moves to IndexedDB once; the old keys are never 
 
 test('a fresh browser starts empty, with no data-folder screen', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('No question pack loaded')).toBeVisible();
+  await expect(page.getByTestId('welcome')).toBeVisible();
   await expect(page.getByText(/data folder/i)).toHaveCount(0);
 });

@@ -3,7 +3,7 @@ import { missedIds, moduleStats, overallStats, recentSessions, topicStats, TOPIC
 import { useApp } from '../../state/AppProvider';
 import { BackupReminder } from '../components/SyncExport';
 import { SetAsideWarning } from '../components/SetAsideWarning';
-import { NoPack } from './NoPack';
+import { Welcome } from './Welcome';
 
 export function barClass(p: number): string {
   return p < 60 ? 'low' : p < 75 ? 'mid' : '';
@@ -37,7 +37,7 @@ export function Dashboard() {
     };
   }, [ix, progress.attempts]);
 
-  if (!ix || !stats) return <NoPack />;
+  if (!ix || !stats) return <Welcome />;
   const { pack } = ix;
   const sessions = recentSessions({ ...progress, sessions: progress.sessions.filter((s) => s.packId === pack.packId) }, 5);
   const attempted = stats.topics.filter((t) => t.total > 0);

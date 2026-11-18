@@ -25,3 +25,11 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
   - a "new version" published mid-drill waits with no banner and no reload, shows on Home, and Reload switches to it;
   - both pass 3×.
 - Unit 163 (+14), e2e 24 (+3), each full run 2×.
+### M3.5 Install help and first-run welcome — done
+- `src/pwa/platform.ts` `detectPlatform` covers iPhone/iPad Safari (including iPadOS presenting as a Mac), other iOS browsers, Android, desktop Chrome/Edge, other desktop browsers, and the installed state.
+- `#/install` shows this device's steps first; the others are folded. Linked from the welcome screen and the Data page (the "More" menu comes in M4.1).
+- **Welcome screen** (D7: included) replaces the old "No question pack loaded" screen everywhere a pack is needed. Step 1 adds the app to the Home Screen (hidden once installed); step 2 imports a pack and lands on Home. A link covers sync files.
+- **D7 condition:** importing a newer pack version is covered by a new e2e test (v1 → v2 replaces and keeps progress; the older file is then refused), on top of the existing unit test.
+- Unit 177 (+14), e2e 26 (+2).
+
+**Step 3 complete.**

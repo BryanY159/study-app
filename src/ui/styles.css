@@ -198,3 +198,10 @@ textarea { width: 100%; border: 1px solid var(--border-strong); border-radius: 1
 .choice:has(input:checked) { border-color: var(--accent); background: var(--accent-tint); }
 .preview-list { margin: 0; padding-left: 20px; }
 .reminder { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }
+
+/* Welcome and install help */
+.welcome-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: step; }
+.welcome-steps > li { counter-increment: step; position: relative; padding-left: 64px; }
+.welcome-steps > li::before { content: counter(step); position: absolute; left: 20px; top: 22px; width: 30px; height: 30px; border-radius: 99px; background: var(--accent-tint); color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+details.card > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }

@@ -8,7 +8,7 @@ import { useApp } from '../../state/AppProvider';
 import { FlagButton, OptionPicker, QuestionMeta, Stem } from '../components/QuestionView';
 import { useFlag } from '../components/useFlag';
 import { navigate } from '../router';
-import { NoPack } from './NoPack';
+import { Welcome } from './Welcome';
 
 export function remainingMs(m: ActiveMock, now = Date.now()): number | null {
   if (m.timeLimitMinutes === null) return null;
@@ -71,7 +71,7 @@ export const discardMock = (p: ProgressDoc, now = new Date()): ProgressDoc =>
 export function MockStart() {
   const { ix, progress, flags, startSession, updateProgress } = useApp();
   const [timed, setTimed] = useState(true);
-  if (!ix) return <NoPack />;
+  if (!ix) return <Welcome />;
   const bp = ix.pack.examBlueprint;
   const active = progress.activeMock;
 
@@ -199,7 +199,7 @@ export function MockRun() {
     return () => window.removeEventListener('keydown', onKey);
   }, [m, q, pick, go, toggleMark, flag]);
 
-  if (!ix) return <NoPack />;
+  if (!ix) return <Welcome />;
   if (saved && !samePack) {
     const other = packs.find((p) => p.packId === saved.packId);
     return (

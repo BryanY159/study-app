@@ -26,10 +26,10 @@ test('the app is one self-contained index.html with no outside references', () =
   expect(refs.filter((r) => /^(https?:)?\/\//.test(r))).toEqual([]);
 });
 
-test('with no pack imported, the app says so and points to import', async ({ page }) => {
+test('with no pack imported, the welcome screen shows', async ({ page }) => {
   const errors = await offline(page);
   await page.goto(APP);
-  await expect(page.getByText('No question pack loaded')).toBeVisible();
+  await expect(page.getByTestId('welcome')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
