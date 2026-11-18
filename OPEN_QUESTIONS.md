@@ -19,3 +19,11 @@ where it's used. Please review at the end of the run.
 - **Default chosen:** keep **3** (`WEAKEST_DRILLED` in `src/engine/progress.ts`). The button says how many ("Drill weakest 3 topics"), so it's never ambiguous. Changing it is a one-line edit.
 - Used in: `src/ui/screens/Dashboard.tsx`.
 
+## Q3. What does "Got it" do to a brand-new card?
+- **Context:** FR-13 says a new card "starts in box 1 once it's first rated", and that Got it moves a card up a box. That could mean the first rating always lands in box 1, or that a new card counts as box 1 and the rating then applies.
+- **Options:**
+  1. a new card counts as box 1: first Got it → box 2 (due tomorrow), first Again → box 1 (today);
+  2. the first rating always lands in box 1, so a Got it card comes back the same day.
+- **Default chosen:** (1). Under (2), a card she knows would come back again the same day, which works against the point of Got it. The rule is one line (`nextBox` in `src/engine/leitner.ts`).
+- Used in: `src/engine/leitner.ts`.
+

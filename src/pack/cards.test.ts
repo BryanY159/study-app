@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { makePack } from '../../test/makePack';
 import { MAX_CARD_IMAGE_BYTES, PACK_WARN_BYTES, parsePack } from './checks';
-import { cardsOf, type Flashcard, type Pack } from './schema';
+import { cardsOf, type Pack } from './schema';
 
 // Flashcards in a pack (@study/pack contract). makePack gives modules a and b, topics a-t and b-t,
 // and questions q-a-0001… / q-b-0001….
 
 const SVG = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>').toString('base64');
-const card = (over: Partial<Flashcard> & Record<string, unknown> = {}): Record<string, unknown> => ({
+const card = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
   id: 'c-a-0001',
   topicIds: ['a-t'],
   type: 'term',
