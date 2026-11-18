@@ -116,6 +116,26 @@ Vite + React, built by `vite-plugin-singlefile` into one self-contained
 straight from disk (`file://`) was retired in step 3 and is no longer tested. `public/` (the iOS storage spike page) is copied
 into `dist/` as is.
 
+## PWA (installable, offline)
+
+- **Manifest** (`src/pwa/manifest.ts`, injected by `vite-plugin-pwa`):
+  standalone, with icons rendered from `public/icons/app-icon.svg` by
+  `scripts/make-icons.ts`. Maskable and Apple icons are full-bleed. `index.html`
+  carries the iOS home-screen tags.
+- **Service worker** (Workbox `generateSW`) precaches the app shell: `index.html`,
+  the manifest and the icons. Every entry has a content hash; an e2e test checks
+  there are no duplicates and no unhashed entries. Navigations fall back to
+  `index.html`, so the app opens offline after the first load. The `spike/` page
+  isn't cached.
+- **Updates** (`src/pwa/updates.ts`, `register.ts`):
+  - `registerType: 'prompt'`, so a new version waits and the app never reloads
+    by itself;
+  - the banner shows only on Home, never during a drill, mock exam or card
+    session; "Later" hides it until the next start;
+  - an open app checks for a new version hourly;
+  - `register.ts` is imported only by `main.tsx`, so unit tests use a fake
+    `UpdateSource`.
+
 ## Tests
 
 - **Unit (Vitest + jsdom, `fake-indexeddb`):**

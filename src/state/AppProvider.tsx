@@ -7,6 +7,7 @@ import type { DataStore, Meta, MetaStore, SetAsideCopy } from '../storage/DataSt
 import type { Attempt, Flag, FlagsDoc, ProgressDoc, Session } from '../storage/docs';
 import { loadDocs } from '../storage/load';
 import { choosePacks, loadImportedPacks, saveImportedPack } from '../storage/packStore';
+import { noUpdates, type UpdateSource } from '../pwa/updates';
 import { browserShareEnv, type ShareEnv } from '../storage/backup';
 import { requestPersistence, type Persistence, type StorageManagerLike } from '../storage/persist';
 import { mergeFlagsForSync, mergeProgressForSync, sameDoc } from '../storage/sync';
@@ -41,6 +42,7 @@ export interface AppState {
   /** Whether the browser promised to keep this site's data. null until it has answered. */
   persistence: Persistence | null;
   shareEnv: ShareEnv;
+  updates: UpdateSource;
   now: () => Date;
 }
 
@@ -96,13 +98,14 @@ interface Props {
   meta?: MetaStore;
   storageManager?: StorageManagerLike | null;
   shareEnv?: ShareEnv;
+  updates?: UpdateSource;
   now?: () => Date;
   /** Give up loading after this long and show the error screen. */
   loadTimeoutMs?: number;
   children: ReactNode;
 }
 
-export function AppProvider({ store, bundledPacks, loadImported = loadImportedPacks, saveImported = saveImportedPack, meta: metaStore, storageManager = null, shareEnv, now = defaultNow, loadTimeoutMs = 20_000, children }: Props) {
+export function AppProvider({ store, bundledPacks, loadImported = loadImportedPacks, saveImported = saveImportedPack, meta: metaStore, storageManager = null, shareEnv, updates = noUpdates, now = defaultNow, loadTimeoutMs = 20_000, children }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [packs, setPacks] = useState<Pack[]>(bundledPacks);
@@ -321,6 +324,7 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
     meta,
     persistence,
     shareEnv: share,
+    updates,
     now,
     ...actions,
   };

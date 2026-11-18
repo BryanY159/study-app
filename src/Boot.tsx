@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Pack } from './pack/schema';
 import { AppProvider } from './state/AppProvider';
+import type { UpdateSource } from './pwa/updates';
 import type { ShareEnv } from './storage/backup';
 import type { DataStore, MetaStore } from './storage/DataStore';
 import { migrateLegacy } from './storage/legacy';
@@ -24,6 +25,8 @@ export interface BootDeps {
   locks: LockManagerLike | null;
   storageManager?: StorageManagerLike | null;
   shareEnv?: ShareEnv;
+  /** New-version state from the service worker (main.tsx); tests may omit it. */
+  updates?: UpdateSource;
   now?: () => Date;
   /** Tests pass these to skip IndexedDB. */
   loadImported?: () => Promise<Pack[]>;
@@ -80,6 +83,7 @@ export function Boot({ deps }: { deps: BootDeps }) {
         saveImported={deps.saveImported}
         storageManager={deps.storageManager}
         shareEnv={deps.shareEnv}
+        updates={deps.updates}
         now={deps.now}
       >
         <App />

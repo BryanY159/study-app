@@ -1,4 +1,5 @@
 import { Header } from './components/Header';
+import { UpdateBanner } from './components/UpdateBanner';
 import { useApp } from '../state/AppProvider';
 import { useRoute } from './router';
 import { Dashboard } from './screens/Dashboard';
@@ -29,6 +30,7 @@ export function App() {
   return (
     <>
       {!inRun && <Header route={route} />}
+      <UpdateBanner path={route.path} />
       {newerVersionData && (
         <div className="banner warn page-banner" role="alert" data-testid="newer-version">
           Some of your data was saved by a newer version of this app, so this version leaves it untouched. Reload the page to get the latest version.

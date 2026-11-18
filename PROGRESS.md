@@ -16,3 +16,12 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - `vite-plugin-pwa` 2.0.0 (dev). The manifest lives in `src/pwa/manifest.ts`, and the plugin injects the `<link rel="manifest">`. `index.html` has the iOS tags and `viewport-fit=cover`.
 - Leak guard: an image in `public/icons/` must be ≤ 64 KB.
 - Unit 149 (+6), e2e 21 (+2).
+### M3.3–M3.4 Service worker (offline) and update banner — done
+- Workbox `generateSW` precaches `index.html`, the manifest and the icons, with a navigation fallback; `spike/` is excluded.
+- **Bug found and fixed:** the first config produced duplicate precache entries with conflicting revisions, and `index.html` had no revision. The precache came out empty, so the app would not have worked offline, and an update would never have refreshed `index.html`. Fixed with `includeManifestIcons: false` and `dontCacheBustURLsMatching` set to never match. An e2e test now checks the generated list: no duplicates, all hashed, no spike page.
+- `src/pwa/updates.ts` (`UpdateSource`, `shouldShowUpdate`) and `register.ts` (`registerSW`, hourly update check). `UpdateBanner` shows only on Home; Reload applies the update and Later hides it. Nothing reloads by itself.
+- e2e `offline.spec.ts` (Chromium) serves its own copy of `dist/`:
+  - offline reload shows Home with the pack, and a drill works;
+  - a "new version" published mid-drill waits with no banner and no reload, shows on Home, and Reload switches to it;
+  - both pass 3×.
+- Unit 163 (+14), e2e 24 (+3), each full run 2×.

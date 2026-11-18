@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { VitePWA } from 'vite-plugin-pwa';
-import { manifest } from './src/pwa/manifest';
+import { manifest } from './src/pwa/manifest.ts';
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
@@ -23,8 +23,12 @@ export default defineConfig({
       injectRegister: false,
       manifest,
       manifestFilename: 'manifest.webmanifest',
+      includeManifestIcons: false,
       workbox: {
-        globPatterns: ['index.html', 'manifest.webmanifest', 'icons/*.{png,svg}'],
+        globPatterns: ['index.html', 'icons/*.{png,svg}'],
+        // Never treat a URL as self-versioned: every entry gets a content hash, so a
+        // changed index.html is fetched again on update. (/(?!)/ matches nothing.)
+        dontCacheBustURLsMatching: /(?!)/,
         globIgnores: ['spike/**'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/?spike\//],
