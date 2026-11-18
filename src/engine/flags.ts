@@ -41,21 +41,25 @@ export function editableFlag(flags: readonly Flag[], packs: readonly Pack[], pac
 }
 
 /**
- * Open a flag for every unconfirmed question that has none yet, so pre-flagged
- * questions appear in the Flags list where she can add comments.
+ * Open a flag for every unconfirmed question or card that has none yet, so
+ * pre-flagged items appear in the Flags list where she can add comments.
  * Returns null when nothing needs adding.
  */
 export function seedPreflags(flags: readonly Flag[], packs: readonly Pack[], now = new Date()): Flag[] | null {
-  const have = new Set(flags.map((f) => `${f.packId}|${f.questionId}`));
+  const have = new Set(flags.map((f) => `${f.packId}|${f.itemType}|${f.questionId}`));
   const added: Flag[] = [];
   for (const p of packs) {
-    for (const q of p.questions) {
-      if (q.status !== 'unconfirmed' || !q.preflag || have.has(`${p.packId}|${q.id}`)) continue;
+    const items = [
+      ...p.questions.map((q) => ({ kind: 'question' as const, item: q })),
+      ...cardsOf(p).map((c) => ({ kind: 'card' as const, item: c })),
+    ];
+    for (const { kind, item: q } of items) {
+      if (q.status !== 'unconfirmed' || !q.preflag || have.has(`${p.packId}|${kind}|${q.id}`)) continue;
       added.push({
         id: `preflag-${p.packId}-${q.id}`,
         packId: p.packId,
         packVersion: p.version,
-        itemType: 'question',
+        itemType: kind,
         questionId: q.id,
         reason: q.preflag.reason,
         comment: '',
@@ -84,17 +88,35 @@ export function prunePreflags(flags: readonly Flag[], packs: readonly Pack[]): F
 export function flagsToJson(flags: readonly Flag[], packs: readonly Pack[], now = new Date()): string {
   const items = flags.map((f) => {
     const pack = packs.find((p) => p.packId === f.packId);
+    // itemId spells out what questionId holds (a question id, or a card id for card flags).
+    if (f.itemType === 'card') return { ...f, itemId: f.questionId, state: flagState(f, packs), card: (pack && cardsOf(pack).find((x) => x.id === f.questionId)) ?? null };
     const q = pack?.questions.find((x) => x.id === f.questionId) ?? null;
-    return { ...f, state: flagState(f, packs), question: q };
+    return { ...f, itemId: f.questionId, state: flagState(f, packs), question: q };
   });
   return JSON.stringify({ kind: 'studyapp-flags', exportedAt: now.toISOString(), flags: items }, null, 2);
 }
 
 /** Markdown export: readable by a person or an AI fixing the pack. */
 export function flagsToMarkdown(flags: readonly Flag[], packs: readonly Pack[], now = new Date()): string {
-  const lines = [`# Flagged questions (${flags.length})`, '', `Exported ${now.toISOString()}`, ''];
+  const cardsN = flags.filter((f) => f.itemType === 'card').length;
+  const lines = [`# Flagged questions (${flags.length - cardsN})${cardsN ? ` and cards (${cardsN})` : ''}`, '', `Exported ${now.toISOString()}`, ''];
   for (const f of flags) {
     const pack = packs.find((p) => p.packId === f.packId);
+    if (f.itemType === 'card') {
+      const c = pack ? cardsOf(pack).find((x) => x.id === f.questionId) : undefined;
+      lines.push(`## Card ${f.questionId} — ${REASON_LABEL[f.reason]}`, '');
+      lines.push(`- Pack: ${f.packId} v${f.packVersion} · flagged ${f.createdAt.slice(0, 10)} during ${f.mode} · state: ${flagState(f, packs)}`);
+      if (f.source === 'preflag') lines.push(`- Pre-flagged in the pack: ${c?.preflag?.note ?? ''}`);
+      lines.push(`- Comment: ${f.comment.trim() || '(none)'}`, '');
+      if (c) {
+        lines.push(`**Card (${c.type}):** ${c.front}`, '', `**Answer:** ${c.back}`);
+        if (c.type === 'diagram') lines.push(`Asks about label: ${c.label}`);
+        lines.push(`Sources: ${c.sources.map((s) => `${s.file} (${s.locator})`).join('; ')}`, '');
+      } else {
+        lines.push('_Card not found in the current pack._', '');
+      }
+      continue;
+    }
     const q = pack?.questions.find((x) => x.id === f.questionId);
     lines.push(`## ${f.questionId} — ${REASON_LABEL[f.reason]}`, '');
     lines.push(`- Pack: ${f.packId} v${f.packVersion} · flagged ${f.createdAt.slice(0, 10)} during ${f.mode} · state: ${flagState(f, packs)}`);

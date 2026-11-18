@@ -171,3 +171,15 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
   - UI: tile counts (1 due + 8 new, the time estimate), learned 1/3 on a topic row, no tile without cards; a right answer offers no cards link, a wrong one links its related cards;
   - e2e: a wrong answer → related cards → session → summary → "Drill" opens drill setup on that topic; the Home tile starts cards; the phone missed / flagged links are visible; the FR-17 chip is still on the first screen.
 - Gate: unit 262, e2e 117 + 21 skipped.
+### M6.8 Flags screen and exports with cards — done
+- The Flags screen (generalized in M6.5–6.6) lists card flags with the card front and a "Card" chip, filters All / Questions / Cards, and opens the card's face.
+- **Unconfirmed cards get a pre-flag**, like unconfirmed questions, once per card, and are resolved by the same newer-pack rule.
+- **Exports:** JSON flags carry `itemType`, `itemId` and a `card` snapshot (or `question`, as before). The Markdown heading counts questions and cards, and card entries show type, front, answer, diagram label and sources.
+- **Gate fixed:** Vitest started printing extra lines after the totals, so the gate's `tail | grep` stopped it although all tests passed. The gate now checks Vitest's exit status directly.
+- Tests:
+  - unit: card pre-flag seeding (once), card flag open / missing, JSON and Markdown export;
+  - UI: three flag items, the Cards filter shows two, the card front is shown and "Open card" shows the answer, the Questions filter shows one;
+  - e2e: the pre-flag count includes the unconfirmed card; the layout test now picks a question flag.
+- Gate: unit 266, e2e 117 + 21 skipped.
+
+**Step 6 complete (M6.1–M6.8).**

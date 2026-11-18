@@ -135,14 +135,16 @@ test('an embedded (data: URI) figure from an imported pack renders', async ({ pa
   expect(await img.getAttribute('src')).toMatch(/^data:image\/svg\+xml;base64,/);
 });
 
-test('pre-flagged questions are seeded into Flags', async ({ page }) => {
+test('pre-flagged questions and cards are seeded into Flags', async ({ page }) => {
   await offline(page);
   await importPack(page, APP);
   const unconfirmed = sample.questions.filter((q: { status: string }) => q.status === 'unconfirmed');
+  const unconfirmedCards = (sample.flashcards ?? []).filter((c: { status: string }) => c.status === 'unconfirmed');
   expect(unconfirmed.length).toBeGreaterThan(0);
 
   await page.goto(APP + '#/flags');
-  await expect(page.getByTestId('flag-item')).toHaveCount(unconfirmed.length);
+  await expect(page.getByTestId('flag-item')).toHaveCount(unconfirmed.length + unconfirmedCards.length);
+  await expect(page.locator('[data-testid="flag-item"][data-kind="card"]')).toHaveCount(unconfirmedCards.length);
   await expect(page.getByTestId('flag-item').first()).toContainText('Pre-flagged');
   await page.getByRole('button', { name: 'Open question' }).first().click();
   await expect(page.getByTestId('unconfirmed')).toContainText('Unconfirmed — check with your notes or instructor.');

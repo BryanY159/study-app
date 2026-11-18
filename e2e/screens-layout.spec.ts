@@ -23,7 +23,7 @@ test('mock results and flags: readable and usable at every size', async ({ page 
   await expect(page.getByRole('heading', { level: 1, name: 'Flagged questions' })).toBeVisible();
   await noSideScroll(page);
   // Every action on a flag is visible as a button (nothing appears only on hover).
-  const item = page.getByTestId('flag-item').first();
+  const item = page.locator('[data-testid="flag-item"][data-kind="question"]').first();
   await expect(item.getByRole('button', { name: 'Open question' })).toBeVisible();
 });
 
