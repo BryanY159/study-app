@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "additionalDirectories": ["../study-app-content"],
+    "deny": [
+      "Edit(../study-app-content/**)",
+      "Write(../study-app-content/**)"
+    ]
+  }
+}
