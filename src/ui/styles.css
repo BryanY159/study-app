@@ -250,3 +250,16 @@ html { -webkit-text-size-adjust: 100%; }
 @media (min-width: 640px) and (max-width: 1023px) {
   .page.narrow { padding-left: max(40px, env(safe-area-inset-left)); padding-right: max(40px, env(safe-area-inset-right)); }
 }
+
+/* Mock exam: the question grid is a side column on tablet and laptop, a slide-up sheet on phone. */
+.legend .legend-answered { background: var(--accent-tint); border-color: var(--accent); }
+.legend .legend-marked { background: var(--warn); border-color: var(--warn); border-radius: 99px; }
+@media (min-width: 640px) and (max-width: 1023px) {
+  .grid-aside.mock-layout { grid-template-columns: minmax(0, 1fr) 232px; }
+  .mock-grid-col { position: sticky; top: 16px; }
+  .mock-grid-col .navgrid { grid-template-columns: repeat(5, 1fr); }
+}
+.sheet .navgrid { grid-template-columns: repeat(6, 1fr); }
+.sheet .navcell, .navgrid .navcell { min-height: 44px; }
+.slide-up { animation: slide-up 0.18s ease-out; }
+@keyframes slide-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }

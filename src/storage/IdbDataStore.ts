@@ -14,6 +14,14 @@ const DB_VERSION = 1;
 const STORES = ['docs', 'setAside', 'meta'] as const;
 type StoreName = (typeof STORES)[number];
 
+/**
+ * Writes ask for strict durability: 'complete' fires only once the data is on disk.
+ * The default ('relaxed' in some browsers) may report success while the data is
+ * still in memory, so an answer given just before the app closes or reloads could be
+ * lost. Found by the e2e tests on WebKit; the cost is a few ms per save.
+ */
+const STRICT: IDBTransactionOptions = { durability: 'strict' };
+
 /** Set-aside copies kept per doc; older ones are dropped so they can't fill the quota. */
 export const MAX_COPIES = 3;
 
@@ -46,7 +54,7 @@ export class IdbDataStore implements DataStore, MetaStore {
   }
 
   private async run<T>(store: StoreName, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-    const tx = this.db.transaction(store, mode);
+    const tx = mode === 'readwrite' ? this.db.transaction(store, mode, STRICT) : this.db.transaction(store, mode);
     const result = done(fn(tx.objectStore(store)));
     result.catch(() => undefined); // the transaction error below is the one reported
     // Resolve only once the transaction has committed, so a "saved" write really is on disk.
@@ -73,7 +81,7 @@ export class IdbDataStore implements DataStore, MetaStore {
    * throws, nothing is written and the error is passed on.
    */
   async update(doc: DocName, fn: (current: unknown | null) => unknown): Promise<void> {
-    const tx = this.db.transaction('docs', 'readwrite');
+    const tx = this.db.transaction('docs', 'readwrite', STRICT);
     const s = tx.objectStore('docs');
     const get = s.get(doc);
     let failure: unknown = null;
@@ -97,7 +105,7 @@ export class IdbDataStore implements DataStore, MetaStore {
     const mine = (await this.listCopies()).filter((c) => c.name.startsWith(`${doc}.`));
     if (mine.some((c) => c.text === text)) return;
     const drop = mine.slice(0, Math.max(0, mine.length - MAX_COPIES + 1));
-    const tx = this.db.transaction('setAside', 'readwrite');
+    const tx = this.db.transaction('setAside', 'readwrite', STRICT);
     const s = tx.objectStore('setAside');
     for (const old of drop) s.delete(old.name);
     s.put({ name, text }, name);
@@ -121,7 +129,7 @@ export class IdbDataStore implements DataStore, MetaStore {
   }
 
   async writeMeta(patch: Partial<Meta>): Promise<void> {
-    const tx = this.db.transaction('meta', 'readwrite');
+    const tx = this.db.transaction('meta', 'readwrite', STRICT);
     const s = tx.objectStore('meta');
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined) s.delete(k);

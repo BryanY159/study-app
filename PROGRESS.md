@@ -62,4 +62,15 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - e2e `drill-layout.spec.ts`:
   - all viewports: answer by tap (phone/tablet) or key (desktop), feedback, Next;
   - phone: with a long invented question the bar stays at the bottom while scrolled, Next appears only after answering, and the last option isn't hidden behind the bar.
-- Unit 189, e2e 90 passed + 8 skipped.
+- Unit 189, e2e 91 passed + 8 skipped.
+### M4.4 Mock exam — done (with a storage durability fix)
+- **Phone:**
+  - a sticky top bar (position, timer, "All questions");
+  - a bottom bar with Prev · Mark · Next;
+  - the question grid in a **slide-up sheet** (`role="dialog"`, focus starts on the current question, Tab is trapped, Esc and backdrop tap close it, "Back to question n"), with Submit inside it.
+- **Tablet:** the grid is a sticky side column. **Laptop:** as in v1. One `QuestionGrid` component serves both.
+- e2e `mock-layout.spec.ts`:
+  - phone: the timer and position stay in view while scrolled; jump via the sheet, mark, answer, Next; the cell reads "answered, marked"; Esc closes the sheet; submit from it;
+  - tablet/laptop: the grid sits beside the question.
+- **Fix: IndexedDB writes now ask for `durability: 'strict'`.** On WebKit the existing "answer, reload, exam resumes" test failed about 2 in 5 runs under load: a save that had reported success was gone after a reload. Strict durability makes "complete" wait until the data is on disk, which also matters when the app is closed right after answering on a phone. Now 3 full runs plus 20 repeats of that test are green. A unit test checks every write transaction is strict. Logged in `OPEN_QUESTIONS.md` (Q1) to confirm on a real iPhone.
+- Unit 190, e2e 94 per run (3 runs).

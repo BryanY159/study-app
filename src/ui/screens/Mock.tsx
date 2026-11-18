@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { assembleMock } from '../../engine/mock';
 import { mulberry32, randomSeed } from '../../engine/rng';
 import { isCorrect } from '../../engine/scoring';
@@ -8,6 +8,7 @@ import { useApp } from '../../state/AppProvider';
 import { FlagButton, OptionPicker, QuestionMeta, Stem } from '../components/QuestionView';
 import { useFlag } from '../components/useFlag';
 import { navigate } from '../router';
+import { useBreakpoint } from '../useBreakpoint';
 import { Welcome } from './Welcome';
 
 export function remainingMs(m: ActiveMock, now = Date.now()): number | null {
@@ -143,6 +144,8 @@ export function MockRun() {
   const m = samePack ? repaired : null;
   const [now, setNow] = useState(Date.now());
   const [confirming, setConfirming] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
+  const phone = useBreakpoint() === 'phone';
   const qid = m?.questionIds[m.current];
   const q = qid ? ix?.question.get(qid) : undefined;
   const flag = useFlag(q, 'mock');
@@ -183,7 +186,7 @@ export function MockRun() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (flag.isOpen || !m || !q || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (flag.isOpen || gridOpen || !m || !q || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toUpperCase();
       const byNumber = /^[1-9]$/.test(k) ? String.fromCharCode(64 + Number(k)) : null;
       const key = byNumber ?? (/^[A-E]$/.test(k) ? k : null);
@@ -197,7 +200,7 @@ export function MockRun() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [m, q, pick, go, toggleMark, flag]);
+  }, [m, q, pick, go, toggleMark, flag, gridOpen]);
 
   if (!ix) return <Welcome />;
   if (saved && !samePack) {
@@ -238,6 +241,75 @@ export function MockRun() {
   const answeredCount = m.questionIds.filter((id) => m.answers[id]).length;
   const unanswered = m.questionIds.length - answeredCount;
   const marked = m.marked.includes(q.id);
+  const position = (
+    <span className="small muted" data-testid="mock-position">
+      Question {m.current + 1} of {m.questionIds.length}
+    </span>
+  );
+  const timer = left !== null && (
+    <div className={`timer${left < 5 * 60_000 ? ' low' : ''}`} role="timer" aria-label="Time remaining" data-testid="timer">
+      {formatClock(left)}
+    </div>
+  );
+  const grid = (
+    <QuestionGrid
+      m={m}
+      unanswered={unanswered}
+      confirming={confirming}
+      onGo={(i) => {
+        go(i);
+        setGridOpen(false);
+      }}
+      onConfirm={setConfirming}
+      onSubmit={submit}
+    />
+  );
+
+  if (phone) {
+    return (
+      <>
+        <header className="run-header">
+          <div className="inner">
+            <div className="grow" style={{ fontWeight: 700 }}>
+              {position}
+            </div>
+            {timer}
+            <button type="button" className="btn small" aria-haspopup="dialog" aria-expanded={gridOpen} onClick={() => setGridOpen(true)}>
+              All questions
+            </button>
+          </div>
+        </header>
+        <main className="page narrow with-bottom-bar">
+          {m.warnings.map((w) => (
+            <div key={w} className="banner warn">
+              {w}
+            </div>
+          ))}
+          <QuestionMeta q={q} ix={ix} extra={<FlagButton flagged={flag.flagged} onClick={flag.open} />} />
+          <Stem q={q} ix={ix} />
+          <OptionPicker q={q} selected={m.answers[q.id] ?? null} onPick={pick} />
+          <p className="small muted">No feedback until you submit. Unanswered questions count as wrong.</p>
+        </main>
+        <div className="bottom-bar" data-testid="bottom-bar">
+          <button type="button" className="btn" onClick={() => go(m.current - 1)} disabled={m.current === 0} aria-label="Previous question">
+            ← Prev
+          </button>
+          <button type="button" className={marked ? 'btn seg grow' : 'btn grow'} aria-pressed={marked} onClick={toggleMark}>
+            {marked ? 'Marked' : 'Mark'}
+          </button>
+          <button type="button" className="btn primary" onClick={() => go(m.current + 1)} disabled={m.current === m.questionIds.length - 1} aria-label="Next question">
+            Next →
+          </button>
+        </div>
+        {gridOpen && (
+          <GridSheet onClose={() => setGridOpen(false)} summary={`${answeredCount} answered · ${m.marked.length} marked`} current={m.current + 1}>
+            {grid}
+          </GridSheet>
+        )}
+        {flag.dialog}
+      </>
+    );
+  }
 
   return (
     <>
@@ -247,11 +319,7 @@ export function MockRun() {
           <div className="grow muted small">
             {answeredCount} answered · {m.marked.length} marked
           </div>
-          {left !== null && (
-            <div className={`timer${left < 5 * 60_000 ? ' low' : ''}`} role="timer" aria-label="Time remaining" data-testid="timer">
-              {formatClock(left)}
-            </div>
-          )}
+          {timer}
         </div>
       </header>
       <main className="page">
@@ -260,16 +328,14 @@ export function MockRun() {
             {w}
           </div>
         ))}
-        <div className="grid-aside">
+        <div className="grid-aside mock-layout">
           <section className="card stack-lg">
             <QuestionMeta
               q={q}
               ix={ix}
               extra={
                 <>
-                  <span className="small muted" data-testid="mock-position">
-                    Question {m.current + 1} of {m.questionIds.length}
-                  </span>
+                  {position}
                   <FlagButton flagged={flag.flagged} onClick={flag.open} />
                 </>
               }
@@ -288,59 +354,127 @@ export function MockRun() {
                 Next →
               </button>
             </div>
-            <p className="small muted">No feedback until you submit. Unanswered questions count as wrong. Keys: A–D answer · ←/→ move · M mark · F flag</p>
+            <p className="small muted">
+              No feedback until you submit. Unanswered questions count as wrong.<span className="kbd-only"> Keys: A–D answer · ←/→ move · M mark · F flag</span>
+            </p>
           </section>
-          <aside className="card stack">
-            <div style={{ fontWeight: 600 }}>Questions</div>
-            <div className="navgrid">
-              {m.questionIds.map((id, i) => {
-                const cls = ['navcell', m.answers[id] ? 'answered' : '', m.marked.includes(id) ? 'marked' : '', i === m.current ? 'current' : ''].join(' ');
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    className={cls}
-                    onClick={() => go(i)}
-                    aria-label={`Question ${i + 1}${m.answers[id] ? ', answered' : ''}${m.marked.includes(id) ? ', marked' : ''}`}
-                  >
-                    {i + 1}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="legend">
-              <span>
-                <i style={{ background: 'var(--accent-tint)', borderColor: 'var(--accent)' }} />
-                Answered
-              </span>
-              <span>
-                <i style={{ background: 'var(--warn)', borderColor: 'var(--warn)', borderRadius: 99 }} />
-                Marked
-              </span>
-              <span>
-                <i />
-                Not answered
-              </span>
-            </div>
-            {confirming ? (
-              <div className="stack" style={{ gap: 8 }}>
-                <p className="small">{unanswered ? `${unanswered} question${unanswered === 1 ? ' is' : 's are'} unanswered and will count as wrong.` : 'Submit your answers?'}</p>
-                <button type="button" className="btn primary" onClick={submit}>
-                  Yes, submit
-                </button>
-                <button type="button" className="btn" onClick={() => setConfirming(false)}>
-                  Keep working
-                </button>
-              </div>
-            ) : (
-              <button type="button" className="btn primary big" onClick={() => setConfirming(true)}>
-                Submit exam
-              </button>
-            )}
-          </aside>
+          <aside className="card stack mock-grid-col">{grid}</aside>
         </div>
       </main>
       {flag.dialog}
     </>
+  );
+}
+
+/** The question grid with its legend and Submit: in the side column, or inside the phone sheet. */
+function QuestionGrid({
+  m,
+  unanswered,
+  confirming,
+  onGo,
+  onConfirm,
+  onSubmit,
+}: {
+  m: ActiveMock;
+  unanswered: number;
+  confirming: boolean;
+  onGo: (i: number) => void;
+  onConfirm: (v: boolean) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <>
+      <div style={{ fontWeight: 600 }}>Questions</div>
+      <div className="navgrid" data-testid="navgrid">
+        {m.questionIds.map((id, i) => {
+          const cls = ['navcell', m.answers[id] ? 'answered' : '', m.marked.includes(id) ? 'marked' : '', i === m.current ? 'current' : ''].join(' ');
+          return (
+            <button
+              key={id}
+              type="button"
+              className={cls}
+              onClick={() => onGo(i)}
+              aria-current={i === m.current ? 'true' : undefined}
+              aria-label={`Question ${i + 1}${m.answers[id] ? ', answered' : ''}${m.marked.includes(id) ? ', marked' : ''}`}
+            >
+              {i + 1}
+            </button>
+          );
+        })}
+      </div>
+      <div className="legend">
+        <span>
+          <i className="legend-answered" />
+          Answered
+        </span>
+        <span>
+          <i className="legend-marked" />
+          Marked
+        </span>
+        <span>
+          <i />
+          Not answered
+        </span>
+      </div>
+      {confirming ? (
+        <div className="stack" style={{ gap: 8 }}>
+          <p className="small">{unanswered ? `${unanswered} question${unanswered === 1 ? ' is' : 's are'} unanswered and will count as wrong.` : 'Submit your answers?'}</p>
+          <button type="button" className="btn primary" onClick={onSubmit}>
+            Yes, submit
+          </button>
+          <button type="button" className="btn" onClick={() => onConfirm(false)}>
+            Keep working
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="btn primary big" onClick={() => onConfirm(true)}>
+          Submit exam
+        </button>
+      )}
+    </>
+  );
+}
+
+/** Phone: the question grid in a panel that slides up. Traps focus; Esc or a backdrop tap closes it. */
+function GridSheet({ children, onClose, summary, current }: { children: ReactNode; onClose: () => void; summary: string; current: number }) {
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = panel.current;
+    el?.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      } else if (e.key === 'Tab' && el) {
+        const items = [...el.querySelectorAll<HTMLElement>('button:not([disabled])')];
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  return (
+    <div className="sheet-backdrop" onClick={onClose} data-testid="grid-sheet">
+      <div ref={panel} className="sheet slide-up stack" role="dialog" aria-modal="true" aria-label="All questions" onClick={(e) => e.stopPropagation()}>
+        <div className="grabber" aria-hidden="true" />
+        <div className="spread">
+          <strong>All questions</strong>
+          <span className="small muted">{summary}</span>
+        </div>
+        {children}
+        <button type="button" className="btn" onClick={onClose}>
+          Back to question {current}
+        </button>
+      </div>
+    </div>
   );
 }

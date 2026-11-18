@@ -39,7 +39,7 @@ test('drill works with every other host blocked', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('mock exam starts with the blueprint question count', async ({ page }) => {
+test('mock exam starts with the blueprint question count', async ({ page }, info) => {
   const errors = await offline(page);
   await importPack(page, APP);
   await page.goto(APP + '#/mock');
@@ -55,6 +55,8 @@ test('mock exam starts with the blueprint question count', async ({ page }) => {
   await page.reload();
   await expect(page.getByTestId('mock-position')).toHaveText(`Question 1 of ${expected}`);
   await expect(page.getByRole('radio', { checked: true })).toHaveCount(1);
+  // On phone the grid and Submit live in the 'All questions' sheet.
+  if (info.project.name === 'phone') await page.getByRole('button', { name: 'All questions' }).click();
   await page.getByRole('button', { name: 'Submit exam' }).click();
   await page.getByRole('button', { name: 'Yes, submit' }).click();
   await expect(page.getByTestId('mock-score')).toContainText(`/ ${expected}`);

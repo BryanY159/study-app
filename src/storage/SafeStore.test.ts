@@ -145,3 +145,21 @@ describe('SafeStore', () => {
     expect(ids(await inner.read('progress'))).toEqual(['a1', 'a2']);
   });
 });
+
+describe('IndexedDB durability', () => {
+  it('every write transaction asks for strict durability (data on disk before "saved")', async () => {
+    const inner = await IdbDataStore.open(new IDBFactory());
+    const seen: (string | undefined)[] = [];
+    const db = (inner as unknown as { db: IDBDatabase }).db;
+    const orig = db.transaction.bind(db);
+    db.transaction = ((names: string | string[], mode?: IDBTransactionMode, opts?: IDBTransactionOptions) => {
+      if (mode === 'readwrite') seen.push(opts?.durability);
+      return orig(names, mode, opts);
+    }) as IDBDatabase['transaction'];
+    await inner.write('progress', prog('t', ['a1']));
+    await inner.update('flags', () => flagsDoc('t', []));
+    await inner.keepCopy('progress.corrupt-x.json', 'x');
+    await inner.writeMeta({ deviceLabel: 'Phone' });
+    expect(seen).toEqual(['strict', 'strict', 'strict', 'strict']);
+  });
+});
