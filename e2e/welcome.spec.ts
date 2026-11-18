@@ -23,10 +23,12 @@ test('importing a newer version of the pack replaces it and keeps progress', asy
   await page.keyboard.press('a');
   await expect(page.getByTestId('feedback')).toBeVisible();
   await page.getByRole('button', { name: /End drill/ }).click();
+  await expect(page.getByText('Welcome back')).toBeVisible();
   await waitForSaved(page, 'docs', 'progress', 'v?.attempts?.length === 1');
 
   const v2 = { ...JSON.parse(readFileSync(SAMPLE_PACK, 'utf8')), version: 2 };
-  const file = path.join(tmpdir(), 'sample-pack-v2.json');
+  // A unique name: projects run in parallel and must not overwrite each other's file.
+  const file = path.join(tmpdir(), `sample-pack-v2-${test.info().project.name}-${test.info().repeatEachIndex}.json`);
   writeFileSync(file, JSON.stringify(v2));
   await page.goto('/#/data');
   await page.getByTestId('pack-input').setInputFiles(file);

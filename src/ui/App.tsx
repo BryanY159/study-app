@@ -1,4 +1,5 @@
-import { Header } from './components/Header';
+import { Header, TabBar } from './components/Header';
+import { useBreakpoint } from './useBreakpoint';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useApp } from '../state/AppProvider';
 import { useRoute } from './router';
@@ -14,6 +15,7 @@ import { MockResults } from './screens/MockResults';
 export function App() {
   const route = useRoute();
   const { newerVersionData } = useApp();
+  const phone = useBreakpoint() === 'phone';
   const [a, b, c] = route.parts;
   // Runs (drill, mock) use their own focused header.
   const inRun = (a === 'drill' || a === 'mock') && b === 'run';
@@ -39,6 +41,7 @@ export function App() {
         </div>
       )}
       {screen}
+      {phone && !inRun && <TabBar route={route} />}
     </>
   );
 }

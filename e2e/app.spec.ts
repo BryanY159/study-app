@@ -81,7 +81,7 @@ test('sync export works and an answer survives a reload (IndexedDB)', async ({ p
 test('perf: 600-question pack imports and stays fast', async ({ page }) => {
   await offline(page);
   const big = { ...makePack({ alpha: 250, beta: 150, gamma: 200 }, { groups: 10 }), packId: 'perf-pack', title: 'Perf pack' };
-  const file = path.join(tmpdir(), 'perf-pack.json');
+  const file = path.join(tmpdir(), `perf-pack-${test.info().project.name}-${test.info().repeatEachIndex}.json`);
   writeFileSync(file, JSON.stringify(big));
   await importPack(page, APP, file, 600);
 

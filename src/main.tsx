@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import './fonts';
+import './ui/tokens.css';
 import './ui/styles.css';
 import { Boot } from './Boot';
 import { registerServiceWorker } from './pwa/register';

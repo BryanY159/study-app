@@ -30,8 +30,8 @@ jobs:
         run: npm run leak-guard
       - run: npm run typecheck
       - run: npm test
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers (Chromium + WebKit for the phone and tablet projects)
+        run: npx playwright install --with-deps chromium webkit
       - name: End-to-end tests (builds first)
         run: npm run e2e
       - name: Leak guard (tracked files + built output)

@@ -33,3 +33,18 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - Unit 177 (+14), e2e 26 (+2).
 
 **Step 3 complete.**
+### M4.1 Foundations and three-viewport e2e — done
+- `src/ui/tokens.css` holds every color: the approved light set plus a **derived dark set (D5)**. `styles.css` and components use only tokens; the Header check icon uses `currentColor`. `theme-color` is set per scheme.
+- **Unit `tokens.test.ts`:**
+  - 22 text/background pairs meet WCAG AA (4.5:1) in **both** themes (the light palette passes too);
+  - the dark set defines every light token;
+  - no hex color anywhere in `src/**/*.css|tsx` outside `tokens.css`;
+  - breakpoint table.
+- Base: `100dvh`, safe-area padding (header, pages, tab bar, sheet), 16 px text/inputs on phone, reduced motion turns off transitions, and keyboard hints only on laptop.
+- **Phone nav:** a bottom tab bar (Home · Drill · Mock · More, with Cards added in M6.5). "More" is a sheet with Flagged, History & data, and Install help; it gets focus and closes on Esc or backdrop tap. Tablet and laptop keep the top nav. One `useBreakpoint()` hook.
+- **Playwright:** projects `phone` (WebKit 390×844, touch), `tablet` (WebKit 820×1180, touch) and `desktop` (Chromium 1280×800). CI installs WebKit too.
+- `e2e/responsive.spec.ts`: nav per viewport, no sideways scroll on any main screen, ≥ 44 px touch targets on phone, and dark mode colors.
+- **Fixed while doing this:**
+  - drill checkbox rows were 40 px; they are now 44 px everywhere;
+  - test-only races: a hash navigation measured the previous screen, a navigation raced "End drill", and parallel projects shared a temp file name.
+- Unit 189 (+12); e2e 84 passed + 6 skipped (Chromium-only service-worker tests on phone and tablet) per run, 3 runs.

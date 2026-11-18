@@ -45,11 +45,12 @@ async function exportFile(page: Page, label?: string): Promise<string> {
   return (await download).path();
 }
 
-const historyCount = async (page: Page) => {
-  await page.goto('/#/data');
-  await expect(page.getByRole('heading', { name: 'Session history' })).toBeVisible();
-  return page.locator('section', { has: page.getByRole('heading', { name: 'Session history' }) }).locator('.list-row').count();
-};
+/** The session history on the Data page has n rows (retries; doesn't reload if already there). */
+async function expectHistory(page: Page, n: number) {
+  if (!page.url().endsWith('#/data')) await page.goto('/#/data');
+  const rows = page.locator('section', { has: page.getByRole('heading', { name: 'Session history' }) }).locator('.list-row');
+  await expect(rows).toHaveCount(n);
+}
 
 test('export on one device → Merge on another: preview, merge, and importing again adds nothing', async ({ browser }) => {
   const a = await device(browser);
@@ -67,17 +68,18 @@ test('export on one device → Merge on another: preview, merge, and importing a
   await expect(panel.getByTestId('merge-preview')).toContainText('+1 session');
   await panel.getByRole('button', { name: 'Merge' }).click();
   await expect(b.page.getByTestId('data-message')).toContainText('Merged');
-  expect(await historyCount(b.page)).toBe(2);
+  await expectHistory(b.page, 2);
 
   // Same file again: nothing new.
   await b.page.getByTestId('sync-input').setInputFiles(file);
   await expect(b.page.getByTestId('merge-preview')).toContainText("nothing this device doesn't already have");
   await b.page.getByRole('button', { name: 'Merge' }).click();
-  expect(await historyCount(b.page)).toBe(2);
+  await expectHistory(b.page, 2);
 
-  // Survives a reload (it's in IndexedDB).
+  // Survives a reload (it's in IndexedDB once the save lands).
+  await waitForSaved(b.page, 'docs', 'progress', 'v?.attempts?.length === 5');
   await b.page.reload();
-  expect(await historyCount(b.page)).toBe(2);
+  await expectHistory(b.page, 2);
   expect([...a.errors, ...b.errors]).toEqual([]);
   await a.context.close();
   await b.context.close();
@@ -100,7 +102,7 @@ test('Replace: a safety copy downloads first, then this device has exactly the f
   await expect(b.page.getByTestId('restore-backup')).toContainText('3');
   await b.page.getByRole('button', { name: 'Replace with this file' }).click();
   await expect(b.page.getByTestId('data-message')).toContainText('Replaced');
-  expect(await historyCount(b.page)).toBe(1);
+  await expectHistory(b.page, 1);
   await a.context.close();
   await b.context.close();
 });
@@ -115,7 +117,7 @@ test('a v1.4 backup file imports with Merge', async ({ browser }) => {
   await expect(b.page.getByTestId('merge-preview')).toContainText('+1 flag');
   await expect(b.page.getByTestId('merge-preview')).toContainText('1 flag updated');
   await b.page.getByRole('button', { name: 'Merge' }).click();
-  expect(await historyCount(b.page)).toBe(2);
+  await expectHistory(b.page, 2);
   await b.page.goto('/#/flags');
   await expect(b.page.getByText('Option C explanation names the wrong vine.')).toBeVisible();
   await expect(b.page.getByText('Asked in class: pale yellow is right.')).toBeVisible();

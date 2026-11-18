@@ -1,0 +1,104 @@
+/*
+ * Design tokens: every color the app uses lives here (a unit test fails on any
+ * hex color elsewhere in the UI). Light values are the approved v1 palette.
+ * Dark mode is a token swap, derived for the same hues and checked for contrast
+ * (WCAG AA, 4.5:1 for text) by src/ui/tokens.test.ts.
+ */
+:root {
+  color-scheme: light dark;
+
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-hover: #f8f9fb;
+  --surface-sunken: #f6f7f9;
+  --border: #e2e5ea;
+  --border-strong: #cbd2da;
+  --divider: #edeff2;
+  --text: #1b2430;
+  --text-2: #3d4756;
+  --muted: #4a5565;
+
+  --accent: #0b5c6b;
+  --accent-hover: #08414c;
+  --accent-tint: #e8f1f2;
+  --accent-soft: #d7ecee;
+  --on-accent: #ffffff;
+
+  --correct: #177245;
+  --correct-tint: #eaf5ee;
+  --correct-soft: #f4faf6;
+  --correct-chip: #e3f2e9;
+  --correct-ink: #155d38;
+
+  --incorrect: #c2410c;
+  --incorrect-tint: #fff1ea;
+  --incorrect-soft: #fff8f4;
+  --incorrect-chip: #fdece3;
+  --incorrect-ink: #9a3412;
+
+  --warn: #b7791f;
+  --warn-tint: #fbebc8;
+  --warn-soft: #fff4e5;
+  --warn-line: #f3d4a8;
+  --warn-ink: #6b3a00;
+
+  --practice-tint: #f3eef8;
+  --practice-ink: #5b3a7a;
+
+  --chip: #eef0f4;
+  /* Figures stay on white in both themes: pack images are drawn for a light page. */
+  --figure-bg: #ffffff;
+  --backdrop: rgba(27, 36, 48, 0.45);
+  --shadow: rgba(0, 0, 0, 0.2);
+
+  --radius-card: 14px;
+  --radius-btn: 12px;
+  --tabbar-h: 60px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #10151b;
+    --surface: #182029;
+    --surface-hover: #1f2933;
+    --surface-sunken: #121920;
+    --border: #2b3540;
+    --border-strong: #3d4956;
+    --divider: #24303b;
+    --text: #e7ecf1;
+    --text-2: #c8d0d9;
+    --muted: #9ba7b4;
+
+    --accent: #5bbccc;
+    --accent-hover: #7dccd8;
+    --accent-tint: #15343b;
+    --accent-soft: #0e2b31;
+    --on-accent: #0b1e22;
+
+    --correct: #4cc38a;
+    --correct-tint: #12281e;
+    --correct-soft: #10221a;
+    --correct-chip: #173426;
+    --correct-ink: #86dcae;
+
+    --incorrect: #f08a5d;
+    --incorrect-tint: #321c13;
+    --incorrect-soft: #2a1811;
+    --incorrect-chip: #3d2217;
+    --incorrect-ink: #ffb495;
+
+    --warn: #e2aa4c;
+    --warn-tint: #33270f;
+    --warn-soft: #2b210d;
+    --warn-line: #5a4417;
+    --warn-ink: #f4d08e;
+
+    --practice-tint: #2a2236;
+    --practice-ink: #d4bdf0;
+
+    --chip: #25303b;
+    --figure-bg: #ffffff;
+    --backdrop: rgba(0, 0, 0, 0.6);
+    --shadow: rgba(0, 0, 0, 0.5);
+  }
+}
