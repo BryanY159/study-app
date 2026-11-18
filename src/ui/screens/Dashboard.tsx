@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { missedIds, moduleStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW, WEAKEST_DRILLED, WEAKEST_SHOWN, weakestTopics } from '../../engine/progress';
 import { useApp } from '../../state/AppProvider';
+import { CardsTile, useCardStats } from '../components/CardsTile';
 import { BackupReminder } from '../components/SyncExport';
 import { SetAsideWarning } from '../components/SetAsideWarning';
 import { useBreakpoint } from '../useBreakpoint';
@@ -29,6 +30,7 @@ export function Dashboard() {
   const { ix, progress, flags } = useApp();
   const phone = useBreakpoint() === 'phone';
   const [showAllTopics, setShowAllTopics] = useState(false);
+  const cardStats = useCardStats();
   const stats = useMemo(() => {
     if (!ix) return null;
     const relevant = progress.attempts.filter((a) => a.packId === ix.pack.packId);
@@ -70,6 +72,8 @@ export function Dashboard() {
           </div>
         )}
       </div>
+
+      <CardsTile />
 
       <div className="grid-3">
         <a href="#/drill" className="action-card primary">
@@ -124,6 +128,11 @@ export function Dashboard() {
                 <div className={barClass(t.pct)} style={{ width: `${t.pct}%` }} />
               </div>
               <span className="pct">{t.pct}%</span>
+              {cardStats?.perTopic.get(t.topicId) && (
+                <span className="small muted topic-cards" data-testid="topic-cards">
+                  Cards {cardStats.perTopic.get(t.topicId)!.learned}/{cardStats.perTopic.get(t.topicId)!.total} learned
+                </span>
+              )}
             </div>
           ))}
           {attempted.length > WEAKEST_SHOWN && (

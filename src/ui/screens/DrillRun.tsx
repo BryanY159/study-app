@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { isCorrect } from '../../engine/scoring';
 import { newId, useApp } from '../../state/AppProvider';
+import { RelatedCardsLink } from '../components/CardsTile';
 import { FlagButton, KeyIdea, OptionFeedback, OptionPicker, QuestionMeta, Stem } from '../components/QuestionView';
 import { useFlag } from '../components/useFlag';
 import { arrowsActive, backToCurrent, chipStates, nextWhileViewing, prev, shownIndex, viewAt, type ChipState } from '../drillNav';
@@ -176,6 +177,7 @@ export function DrillRun() {
               {right ? '✓ Correct' : '✗ Incorrect'}
             </p>
             <OptionFeedback q={q} chosen={chosen} />
+            {!right && <RelatedCardsLink questionId={q.id} topicIds={q.topicIds} />}
             <KeyIdea q={q} />
           </>
         ) : (

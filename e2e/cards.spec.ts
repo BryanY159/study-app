@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { importPack } from './flows';
+import { readFileSync } from 'node:fs';
+import { importPack, SAMPLE_PACK } from './flows';
 
 // Flashcards at each viewport, on the Orrin fixture's 10 invented cards.
 
@@ -94,4 +95,37 @@ test('every size: rate a card and finish via End session; reduced motion turns t
   await expect(page.getByTestId('card-summary')).toBeVisible();
   await expect(page.getByText('Practice session: the schedule was not changed.')).toBeVisible();
   await context.close();
+});
+
+test('wrong drill answer → its related cards → session → summary → drill these topics', async ({ page }) => {
+  const sample = JSON.parse(readFileSync(SAMPLE_PACK, 'utf8')) as { questions: { id: string; stem: string; options: { key: string; correct: boolean }[] }[] };
+  await importPack(page, '/');
+  await page.goto('/#/drill?topics=alpha-glowroot-anatomy');
+  await page.getByRole('button', { name: /Start drill/ }).click();
+  const stem = (await page.getByTestId('stem').textContent()) ?? '';
+  const q = sample.questions.find((x) => stem.includes(x.stem))!;
+  await page.keyboard.press(q.options.find((o) => !o.correct)!.key.toLowerCase());
+  const link = page.getByTestId('related-cards');
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(page.getByText(/linked to a question/)).toBeVisible();
+  await page.getByTestId('start-cards').click();
+  // Rate every card shown until the summary.
+  for (let i = 0; i < 6 && !(await page.getByTestId('card-summary').isVisible()); i++) {
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: /^Got it/ }).click();
+  }
+  await expect(page.getByTestId('card-summary')).toBeVisible();
+  await page.getByRole('link', { name: /^Drill/ }).click();
+  await expect(page).toHaveURL(/#\/drill\?topics=alpha-glowroot-anatomy/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Set up a drill' })).toBeVisible();
+});
+
+test('Home: the cards tile starts a session', async ({ page }) => {
+  await importPack(page, '/');
+  await page.goto('/#/');
+  const tile = page.getByTestId('cards-tile');
+  await expect(tile).toContainText('+10 new');
+  await tile.getByRole('link', { name: 'Start cards' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Flashcards' })).toBeVisible();
 });

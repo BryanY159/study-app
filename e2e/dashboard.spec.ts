@@ -12,7 +12,7 @@ test('Home layout per viewport', async ({ page }, info) => {
   const columns = (sel: string) => page.locator(sel).first().evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
   const project = info.project.name;
   if (project === 'phone') {
-    expect(await columns('.grid-3')).toBe(1);
+    expect(await columns('.grid-3')).toBe(2); // Drill · Mock two-up, the third full width
     expect(await columns('.grid-main')).toBe(1);
     // One column, in order: reminder → quick actions → topics → the rest.
     const top = async (sel: string) => (await page.locator(sel).first().boundingBox())!.y;
@@ -53,4 +53,12 @@ test('FR-17: "Drill weakest" is in the topics header everywhere, and on phone al
   } else {
     await expect(page.getByTestId('drill-weakest-chip')).toHaveCount(0);
   }
+});
+
+test('phone: the missed / flagged links stay reachable on Home', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'phone layout only');
+  await drillFlow(page, '/');
+  await page.goto('/#/');
+  await expect(page.getByRole('link', { name: /flagged$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /missed$/ })).toBeVisible();
 });

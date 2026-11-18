@@ -159,3 +159,15 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
   - UI (`cards.test.tsx`): setup counts per topic, the start label per mode, the type filter and empty reason, the daily limit (2 of 3 left), flip / rate by key and button (box 2 tomorrow), keys ignored before flipping, the aria-live answer, Again back after 3 cards, Undo (state fresh again, review tombstoned, Undo gone), cram leaves the schedule alone, a card flag, and the summary numbers;
   - e2e (`cards.spec.ts`): phone tap, swipe before and after flipping, and bottom-bar buttons; a whole desktop session by keyboard into the summary (10 reviewed, 90%); the tablet diagram (image loaded, 3 labels, B highlighted, ≤ 640 px); reduced motion means no animation; Cards added to the responsive checks.
 - Gate: unit 257, e2e 110 + 19 skipped.
+### M6.7 Cards ↔ questions, and the dashboard — done
+- **Home:**
+  - a **Cards due today** tile (due, "+N new" within today's limit, about N minutes at ~20 s a card, Start), shown only when the pack has cards;
+  - topic rows show "Cards learned/total".
+- **After a wrong drill answer:** "Review the N related cards" (cards whose `relatedQuestionIds` include the question), or else "Review cards for this topic". It opens deck setup on just those cards as a cram. The card summary's "Drill these topics" closes the loop.
+- **Guard:** topic and overall stats, and mock assembly with a fixed seed, are identical with and without cards.
+- **Phone Home re-balanced:** the new tile pushed the FR-17 chip off the first screen. Quick actions are now two-up on phone (Drill · Mock, as in the approved mockup), with the third card full width. Drill and Mock drop their sub-lines on phone; the "missed / flagged" links stay, with a test. The tile and reminder are tighter. The M4.2 test now expects 2 columns on phone.
+- Tests:
+  - unit: the scoring/mock guard;
+  - UI: tile counts (1 due + 8 new, the time estimate), learned 1/3 on a topic row, no tile without cards; a right answer offers no cards link, a wrong one links its related cards;
+  - e2e: a wrong answer → related cards → session → summary → "Drill" opens drill setup on that topic; the Home tile starts cards; the phone missed / flagged links are visible; the FR-17 chip is still on the first screen.
+- Gate: unit 262, e2e 117 + 21 skipped.
