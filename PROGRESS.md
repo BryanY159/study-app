@@ -183,3 +183,81 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - Gate: unit 266, e2e 117 + 21 skipped.
 
 **Step 6 complete (M6.1–M6.8).**
+### M6.9 Release prep v2.0.0 — done (not tagged, not pushed)
+- `package.json` 2.0.0. README (install, cards, sync, update banner, `@study/pack#v2.0.0`) and `architecture.md` (flashcards, three documents, sync format 3, the contract exports) are updated.
+- A visual check in the browser pane at phone size: Home (two-up actions, Cards tab, chip on the first screen) and a diagram card flipped (labels placed, B highlighted, rating hints).
+- The full gate passed **3× in a row**. `npm pack --dry-run`: 14 files, 15.1 kB (README, package.json, `src/pack`, `src/engine`).
+- One more WebKit occurrence of Q1 (see below): that test is now `fixme` on phone/tablet and still runs on desktop.
+
+---
+
+# Final summary (steps 3–6 run)
+
+Commits on `main` after `v1.5.0`: from `20e2364` (decisions) to the final commit, one or more per milestone. **Nothing is pushed or tagged.**
+
+## Milestones
+| | Milestone | Status |
+|---|---|---|
+| 3.1 | Retire `file://` mode | done |
+| 3.2 | Manifest + icons from the approved SVG | done |
+| 3.3–3.4 | Service worker (offline) + update banner only on Home | done (fixed a precache bug that would have broken offline mode) |
+| 3.5 | Install help + first-run welcome (D7) | done |
+| 4.1 | Tokens + dark mode (AA-checked), phone tab bar, three-viewport e2e | done |
+| 4.2 | Dashboard layouts | done (phone quick actions two-up since 6.7) |
+| 4.3 | Drill on phone (bottom bar) | done |
+| 4.4 | Mock: slide-up grid on phone, side grid on tablet | done (+ strict IndexedDB durability) |
+| 4.5 | Other screens, stacked tables | done |
+| 5.1 | FR-16 review earlier drill questions | done |
+| 5.2 | FR-17 weakest topics placement | done |
+| 6.1 | Flashcards in `@study/pack` | done |
+| 6.2 | Leitner scheduler (exam cap, daily limit) | done |
+| 6.3 | Cards doc, flags v2, sync format 3 | done |
+| 6.4 | Fixture cards | done |
+| 6.5–6.6 | Deck setup, review, summary | done |
+| 6.7 | Cards tile, topic progress, related cards | done |
+| 6.8 | Card flags, pre-flags, exports | done |
+| 6.9 | Release prep | done, **not tagged** |
+
+## Tests
+- **Unit:** 266 (was 143 at `v1.5.0`).
+- **e2e per viewport** (each full run; the gate passed 3× in a row):
+
+  | | phone (WebKit) | tablet (WebKit) | desktop (Chromium) |
+  |---|---|---|---|
+  | passed | 40 | 36 | 39 |
+  | skipped | 6 | 10 | 7 |
+
+  Skips are tests for another viewport, Chromium-only service-worker tests, and the one `fixme` (Q1 on WebKit).
+- Typecheck clean; leak guard clean on sources and `dist/`.
+
+## Content repo must change (`@study/pack`)
+- Bump the pin to `github:BryanY159/study-app#v2.0.0`. Nothing else is required, because `flashcards` is optional.
+- **New exports:**
+  - `@study/pack`: `FlashcardSchema`, `CardImageSchema`, `CardLabelSchema`, `CARD_TYPES`, `CARD_ID_RE`, `CLOZE_BLANK`, `cardsOf`, `MAX_CARD_IMAGE_BYTES`, `PACK_WARN_BYTES`;
+  - `@study/pack/engine`: `nextState`, `buildQueue`, `requeueAgain`, `deckCounts`, `dueDateFor`, `localDay`, `addDays`, `nextBox`, `isDue`, `isLearned` and the box constants.
+- Diagram cards need `label` (D2).
+
+## Data format changes
+- **Sync file format 3:** adds `cards`. v1.4 backups (format 1) and v1.5 sync files (format 2) still import, tested with committed fixtures.
+- **Flags doc v2:** `itemType`. v1 docs are upgraded on read, and an older app leaves v2 untouched.
+- **New `cards` doc** in IndexedDB.
+- `progress.settings.newCardsPerDay` (default 20).
+
+## Your manual checks
+- **Laptop (Chrome/Edge):**
+  - install the PWA; go offline and reopen;
+  - deploy a later version and confirm the banner appears only on Home;
+  - run a card session by keyboard;
+  - check dark mode (D5 colors, AA-checked, for your review).
+- **iPhone:**
+  - Add to Home Screen; open it in airplane mode;
+  - a card session with tap and swipe;
+  - Export, then import with Merge on the laptop;
+  - **Q1:** answer, close the app at once, reopen.
+- **iPad:** the diagram card and the mock grid as a side column.
+
+## Open questions (`OPEN_QUESTIONS.md`)
+- **Q1:** WebKit reload right after a save. Partly fixed (strict durability); needs your call.
+- **Q2:** "Drill weakest" drills 3 topics.
+- **Q3:** the first Got it on a new card goes to box 2.
+- Still open from before: the iOS spike result for `REMINDER_DAYS` (still 3).

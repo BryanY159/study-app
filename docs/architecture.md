@@ -42,10 +42,40 @@ modules) and warnings (duplicate stems, one answer letter correct in more than
 
 See [`test/fixtures/sample-pack.json`](../test/fixtures/sample-pack.json) for a complete example.
 
+## Flashcards
+
+- **In the pack:** an optional `flashcards` array. Each card has an `id` (`c-<prefix>-NNNN`),
+  `topicIds`, a `type` (term, concept, cloze or diagram), `front`, `back`, an optional
+  `image` (a `data:` URI with alt text and labels at x/y fractions), `label` (diagram
+  cards: which label is asked about), `relatedQuestionIds`, `sources` and `status`.
+  `checkPack` validates the cross-references, image size (≤ 400 KB) and the cloze /
+  diagram rules.
+- **Scheduler** (`src/engine/leitner.ts`, pure):
+  - five boxes, with intervals of 0 / 1 / 3 / 7 / 14 days;
+  - Got it moves a card up one box and Again sends it to box 1;
+  - the exam cap keeps due dates no later than the day before the exam;
+  - a daily new-card limit (device setting, default 20);
+  - cram sessions never change the schedule.
+- **Saved progress:** a third document, `cards` (state per `packId|cardId`, a review log,
+  and tombstones for undone reviews). It merges like the others: reviews by id,
+  each card's state from its latest review.
+- **Screens:**
+  - `#/cards` (deck setup) and `#/cards/run` (review with flip, rating, swipe,
+    undo, flag, and a summary);
+  - a Cards-due tile on Home, and card progress per topic;
+  - related cards are offered after a wrong drill answer.
+
+  Cards never change question scores or mock assembly; a test guards this.
+- **Flags v2:** flags carry `itemType` (`question` or `card`). Unconfirmed cards get pre-flags.
+
 ## Storage
 
-- Two documents: **progress** (attempts, sessions, settings, an active mock) and
-  **flags**. Their schemas live in `src/storage/docs.ts`.
+- Three documents, with schemas in `src/storage/docs.ts`:
+  - **progress**: attempts, sessions, settings and an active mock;
+  - **flags** (v2);
+  - **cards**: flashcard progress.
+
+  `MAX_DOC_VERSION` holds the highest version this app reads for each document.
 - **Everything is in IndexedDB** (`src/storage/IdbDataStore.ts`), database
   `studyapp-data` with three stores:
   - `docs`: the two documents;
@@ -86,12 +116,14 @@ See [`test/fixtures/sample-pack.json`](../test/fixtures/sample-pack.json) for a 
 `src/storage/syncFile.ts`. One format serves both:
 
 ```jsonc
-{ "kind": "studyapp-sync", "formatVersion": 2, "appVersion": "1.5.0",
-  "device": "Laptop", "createdAt": "…", "progress": { … }, "flags": { … } }
+{ "kind": "studyapp-sync", "formatVersion": 3, "appVersion": "2.0.0",
+  "device": "Laptop", "createdAt": "…", "progress": { … }, "flags": { … }, "cards": { … } }
 ```
 
-- **Format 1** is the v1.4 backup (`kind: "studyapp-backup"`). It is accepted and
-  upgraded on import. Each future format adds one upgrade step.
+- **Older formats are upgraded on import, one step at a time (1 → 2 → 3):**
+  - format 1 is the v1.4 backup (`kind: "studyapp-backup"`);
+  - format 2 is the v1.5 sync file;
+  - each future format adds one upgrade step.
 - A file or document from a newer app version is refused, with a message to update.
 - **Export** builds the file before the click handler's first `await`, so iOS still
   opens the Share sheet. Touch devices share; desktops download.
@@ -201,10 +233,16 @@ works by allowlist, so it never names real content:
 
 ## `@study/pack` contract
 
-- `@study/pack`: `PackSchema` and the other schemas, their TypeScript types,
-  `parsePack`, `checkPack`, `zodIssues`, `normalizeText`, `formatIssues`.
-- `@study/pack/engine`: `indexPack`, `toUnits`, `assembleMock`, `mulberry32`,
-  `shuffle`, `randomSeed`.
+- `@study/pack`:
+  - `PackSchema` and the other schemas, with their TypeScript types;
+  - `parsePack`, `checkPack`, `zodIssues`, `normalizeText`, `formatIssues`;
+  - since v2.0.0, flashcards: `FlashcardSchema`, `CardImageSchema`,
+    `CardLabelSchema`, `CARD_TYPES`, `CARD_ID_RE`, `CLOZE_BLANK`, `cardsOf`,
+    `MAX_CARD_IMAGE_BYTES`, `PACK_WARN_BYTES`.
+- `@study/pack/engine`:
+  - `indexPack`, `toUnits`, `assembleMock`, `mulberry32`, `shuffle`, `randomSeed`;
+  - since v2.0.0, the Leitner scheduler: `nextState`, `buildQueue`, `requeueAgain`,
+    `deckCounts`, `dueDateFor`, `localDay`, `addDays`, and the box constants.
 - It ships TypeScript source (consumers use `tsx`/Vitest). Its only runtime
   dependency is `zod`, and there's deliberately no `prepare` script, so a git
   install doesn't pull in the app's dev tooling.

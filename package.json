@@ -2,7 +2,7 @@
   "name": "@study/pack",
   "description": "Generic study app (quiz engine). This package also exports the content-pack schema and validator for content repos.",
   "private": true,
-  "version": "1.5.0",
+  "version": "2.0.0",
   "type": "module",
   "exports": {
     ".": "./src/pack/index.ts",

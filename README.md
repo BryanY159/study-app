@@ -20,18 +20,25 @@ Live site: https://bryany159.github.io/study-app/
 
 ## Using it
 
-1. Open the site in Chrome, Edge or Safari.
-2. Go to **History & data → Import pack…** and choose a pack `.json` file.
-3. Use **Drill** to practise by topic, or **Mock exam** for a timed run.
+1. Open the site in Chrome, Edge or Safari. **Install it** to use it offline: on
+   iPhone/iPad, Safari → Share → Add to Home Screen; on a laptop, the install icon in
+   Chrome or Edge. The **Install help** page (History & data, or More on a phone)
+   shows the steps for your device.
+2. On the welcome screen (or **History & data → Import pack…**) choose a pack `.json` file.
+3. Use **Cards** for flashcards (spaced repetition, five boxes, capped so every card
+   comes round before the exam), **Drill** to practise by topic, or **Mock exam** for a
+   timed run. After a wrong drill answer the app offers the related cards.
 4. Progress and flags are saved on this device (IndexedDB). To back them up or use
    another device, **History & data → Export sync file** saves one file (on an
    iPhone or iPad it opens the Share sheet). On the other device, **Import sync
    file…** with **Merge** adds what's new; **Replace** makes that device's data
-   the file's (a safety copy is saved first). A v1.4 backup file imports the same way.
+   the file's (a safety copy is saved first). Flashcard progress travels in the same
+   file. Backups from v1.4 and sync files from v1.5 import the same way.
 5. Home shows a gentle reminder when this device hasn't exported for a few days.
 
 There is no automatic sync and no account: the sync file is the only way data
-leaves a device.
+leaves a device. When a new version is deployed, an installed app shows a
+"new version" banner on Home and never reloads in the middle of a session.
 
 The page `spike/storage.html` is a standalone test page for checking whether a
 home-screen app on iOS keeps its saved data (see [`spike/ios-storage.md`](spike/ios-storage.md)).
@@ -65,12 +72,12 @@ so content repos validate their packs with exactly the app's rules:
 
 ```jsonc
 // package.json in a content repo
-"dependencies": { "@study/pack": "github:BryanY159/study-app#v1.4.1" }
+"dependencies": { "@study/pack": "github:BryanY159/study-app#v2.0.0" }
 ```
 
 ```ts
 import { parsePack } from '@study/pack';          // schema + checks
-import { assembleMock } from '@study/pack/engine'; // pure engine helpers
+import { assembleMock, nextState } from '@study/pack/engine'; // pure engine helpers, incl. the card scheduler
 ```
 
 ## Releases
