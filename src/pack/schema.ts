@@ -93,6 +93,62 @@ export const QuestionSchema = z
     });
   });
 
+// ---- Flashcards (optional in a pack) ---------------------------------------
+
+export const CARD_ID_RE = /^c-[a-z0-9]+(-[a-z0-9]+)*-\d{4}$/;
+export const CARD_TYPES = ['term', 'concept', 'cloze', 'diagram'] as const;
+/** The one blank a cloze card's front must contain. */
+export const CLOZE_BLANK = '____';
+
+/** A labelled point on a card image. x and y are fractions of the width and height (0–1). */
+export const CardLabelSchema = z.object({
+  key: z.string().regex(/^[A-Z]$/, 'must be a single capital letter'),
+  x: z.number().min(0, 'must be between 0 and 1').max(1, 'must be between 0 and 1'),
+  y: z.number().min(0, 'must be between 0 and 1').max(1, 'must be between 0 and 1'),
+});
+
+/** An image embedded in the card as a data: URI (packs are single self-contained files). */
+export const CardImageSchema = z.object({
+  data: nonEmpty,
+  alt: nonEmpty,
+  labels: z.array(CardLabelSchema).default([]),
+});
+
+export const FlashcardSchema = z
+  .object({
+    id: z.string().regex(CARD_ID_RE, 'must look like c-<prefix>-0001'),
+    topicIds: z.array(slug).min(1),
+    type: z.enum(CARD_TYPES),
+    front: nonEmpty,
+    back: nonEmpty,
+    image: CardImageSchema.nullable().default(null),
+    /** Diagram cards: which of image.labels the card asks about. */
+    label: z.string().regex(/^[A-Z]$/, 'must be a single capital letter').optional(),
+    /** Questions this card helps with ("Review the related cards" after a wrong answer). */
+    relatedQuestionIds: z.array(z.string()).default([]),
+    sources: z.array(SourceSchema).min(1, 'needs at least one source'),
+    status: z.enum(['draft', 'verified', 'unconfirmed']),
+    preflag: PreflagSchema.optional(),
+  })
+  .superRefine((c, ctx) => {
+    if (c.status === 'unconfirmed' && !c.preflag) ctx.addIssue({ code: 'custom', path: ['preflag'], message: 'unconfirmed cards need a preflag {reason, note}' });
+    if (c.preflag && c.status !== 'unconfirmed') ctx.addIssue({ code: 'custom', path: ['preflag'], message: 'preflag is only allowed on unconfirmed cards' });
+    if (c.type === 'cloze') {
+      const blanks = c.front.split(CLOZE_BLANK).length - 1;
+      if (blanks !== 1) ctx.addIssue({ code: 'custom', path: ['front'], message: `a cloze card needs exactly one ${CLOZE_BLANK} (found ${blanks})` });
+    }
+    if (c.type === 'diagram') {
+      if (!c.image) ctx.addIssue({ code: 'custom', path: ['image'], message: 'a diagram card needs an image' });
+      else if (!c.image.labels.length) ctx.addIssue({ code: 'custom', path: ['image', 'labels'], message: 'a diagram card needs at least one label' });
+      if (!c.label) ctx.addIssue({ code: 'custom', path: ['label'], message: 'a diagram card needs a label naming the part it asks about' });
+      else if (c.image && c.image.labels.length && !c.image.labels.some((l) => l.key === c.label)) {
+        ctx.addIssue({ code: 'custom', path: ['label'], message: `label "${c.label}" is not one of the image's labels` });
+      }
+    } else if (c.label) {
+      ctx.addIssue({ code: 'custom', path: ['label'], message: 'only diagram cards have a label' });
+    }
+  });
+
 export const ExamBlueprintSchema = z.object({
   questionCount: z.number().int().positive(),
   timeLimitMinutes: z.number().int().positive(),
@@ -108,6 +164,8 @@ export const PackSchema = z.object({
   modules: z.array(ModuleSchema).min(1),
   scenarios: z.array(ScenarioSchema),
   questions: z.array(QuestionSchema),
+  /** Optional: packs without flashcards still load. Read it with cardsOf(pack). */
+  flashcards: z.array(FlashcardSchema).optional(),
 });
 
 export type Figure = z.infer<typeof FigureSchema>;
@@ -120,3 +178,9 @@ export type Question = z.infer<typeof QuestionSchema>;
 export type ExamBlueprint = z.infer<typeof ExamBlueprintSchema>;
 export type Pack = z.infer<typeof PackSchema>;
 export type Preflag = z.infer<typeof PreflagSchema>;
+export type Flashcard = z.infer<typeof FlashcardSchema>;
+export type CardType = (typeof CARD_TYPES)[number];
+export type CardImage = z.infer<typeof CardImageSchema>;
+
+/** The pack's flashcards ([] when it has none). */
+export const cardsOf = (pack: { flashcards?: Flashcard[] }): Flashcard[] => pack.flashcards ?? [];

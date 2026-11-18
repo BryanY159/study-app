@@ -1,5 +1,10 @@
 import type { z } from 'zod';
-import { PackSchema, type Pack } from './schema';
+import { cardsOf, PackSchema, type Pack } from './schema';
+
+/** A card image may be at most this big once encoded (data: URI length). */
+export const MAX_CARD_IMAGE_BYTES = 400 * 1024;
+/** Above this, a pack gets a warning (slow to import on a phone). */
+export const PACK_WARN_BYTES = 15 * 1024 * 1024;
 
 // Semantic checks the schema can't express (cross-references, answer keys).
 // Pure: no filesystem, so the app can run them on pack import too.
@@ -73,6 +78,36 @@ export function checkPack(pack: Pack): CheckResult {
     const dup = stems.get(norm);
     if (dup && q.scenarioId === null) warnings.push({ path: at, message: `same stem as ${dup}` });
     else stems.set(norm, q.id);
+  }
+
+  // Flashcards: unique ids, topics and related questions resolve, images embedded and small.
+  const cardIds = new Set<string>();
+  for (const c of cardsOf(pack)) {
+    const at = `flashcards.${c.id}`;
+    if (cardIds.has(c.id)) errors.push({ path: at, message: `duplicate card id "${c.id}"` });
+    cardIds.add(c.id);
+    const modules = new Set<string>();
+    for (const t of c.topicIds) {
+      const m = topicModule.get(t);
+      if (!m) errors.push({ path: `${at}.topicIds`, message: `unknown topic "${t}"` });
+      else modules.add(m);
+    }
+    if (modules.size > 1) errors.push({ path: `${at}.topicIds`, message: `topics span several modules (${[...modules].join(', ')})` });
+    for (const qid of c.relatedQuestionIds) {
+      if (!questionIds.has(qid)) errors.push({ path: `${at}.relatedQuestionIds`, message: `unknown question "${qid}"` });
+    }
+    if (c.image) {
+      if (!/^data:image\/[a-z0-9.+-]+(;[^,]*)?,/i.test(c.image.data)) {
+        errors.push({ path: `${at}.image.data`, message: 'the image must be embedded as a data:image/… URI' });
+      } else if (c.image.data.length > MAX_CARD_IMAGE_BYTES) {
+        errors.push({ path: `${at}.image.data`, message: `the image is ${Math.round(c.image.data.length / 1024)} KB encoded; the limit is ${MAX_CARD_IMAGE_BYTES / 1024} KB` });
+      }
+    }
+  }
+
+  const packBytes = JSON.stringify(pack).length;
+  if (packBytes > PACK_WARN_BYTES) {
+    warnings.push({ path: '(pack)', message: `the pack is ${(packBytes / 1024 / 1024).toFixed(1)} MB; over ${PACK_WARN_BYTES / 1024 / 1024} MB it may be slow to import on a phone` });
   }
 
   const singles = [...letterCounts.values()].reduce((a, b) => a + b, 0);

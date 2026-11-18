@@ -4,5 +4,5 @@
 // Changing anything exported here is a format change: tag a new version.
 
 export * from './schema';
-export { checkPack, formatIssues, normalizeText, parsePack, zodIssues } from './checks';
+export { checkPack, formatIssues, MAX_CARD_IMAGE_BYTES, normalizeText, PACK_WARN_BYTES, parsePack, zodIssues } from './checks';
 export type { CheckResult, Issue, ParseResult } from './checks';
