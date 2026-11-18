@@ -4,6 +4,7 @@ import { newId, useApp } from '../../state/AppProvider';
 import { FlagButton, KeyIdea, OptionFeedback, OptionPicker, QuestionMeta, Stem } from '../components/QuestionView';
 import { useFlag } from '../components/useFlag';
 import { navigate } from '../router';
+import { useBreakpoint } from '../useBreakpoint';
 
 /** FR-2: one question at a time, feedback right after answering. */
 export function DrillRun() {
@@ -13,6 +14,13 @@ export function DrillRun() {
   const q = qid ? ix?.question.get(qid) : undefined;
   const chosen = qid ? drill?.answers[qid] : undefined;
   const flag = useFlag(q, 'drill');
+  const phone = useBreakpoint() === 'phone';
+  const verdict = useRef<HTMLParagraphElement>(null);
+
+  // After answering, bring the feedback into view (on a phone it starts below the options).
+  useEffect(() => {
+    if (chosen) verdict.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  }, [chosen]);
 
   useEffect(() => {
     shownAt.current = Date.now();
@@ -116,27 +124,40 @@ export function DrillRun() {
           </div>
         </div>
       </header>
-      <main className="page narrow">
-        <QuestionMeta q={q} ix={ix} extra={<FlagButton flagged={flag.flagged} onClick={flag.open} />} />
+      <main className={phone ? "page narrow with-bottom-bar" : "page narrow"}>
+        <QuestionMeta q={q} ix={ix} extra={phone ? undefined : <FlagButton flagged={flag.flagged} onClick={flag.open} />} />
         <Stem q={q} ix={ix} />
         {chosen ? (
           <>
-            <p className={`verdict ${right ? 'ok' : 'bad'}`} role="status">
+            <p ref={verdict} className={`verdict ${right ? 'ok' : 'bad'}`} role="status">
               {right ? '✓ Correct' : '✗ Incorrect'}
             </p>
             <OptionFeedback q={q} chosen={chosen} />
             <KeyIdea q={q} />
-            <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <button type="button" className="btn primary big" onClick={next} autoFocus>
-                {drill.index + 1 >= total ? 'Finish drill' : 'Next question →'}
-              </button>
-            </div>
+            {!phone && (
+              <div className="row" style={{ justifyContent: 'flex-end' }}>
+                <button type="button" className="btn primary big" onClick={next} autoFocus>
+                  {drill.index + 1 >= total ? 'Finish drill' : 'Next question →'}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <OptionPicker q={q} selected={null} onPick={answer} />
         )}
         <p className="kbd-hint">Keys: A–D (or 1–4) to answer · Enter for next · F to flag</p>
       </main>
+      {phone && (
+        // Phone: Flag and Next stay reachable at the bottom of the screen.
+        <div className="bottom-bar" data-testid="bottom-bar">
+          <FlagButton flagged={flag.flagged} onClick={flag.open} />
+          {chosen && (
+            <button type="button" className="btn primary grow" onClick={next}>
+              {drill.index + 1 >= total ? 'Finish drill' : 'Next question →'}
+            </button>
+          )}
+        </div>
+      )}
       {flag.dialog}
     </>
   );

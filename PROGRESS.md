@@ -52,3 +52,14 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - Phone: one column (reminder → quick actions → topics → overall / by module), and recent sessions folded behind "Show recent sessions". Tablet: two columns (quick actions 2-up, with the odd card full width; topics beside overall). Laptop: as in v1.
 - e2e `dashboard.spec.ts` checks grid columns per viewport, section order on phone, and the sessions toggle; it attaches a screenshot per viewport.
 - Unit 189, e2e 87 passed + 6 skipped.
+### M4.3 Drill and question views — done
+- Phone:
+  - full-width options with ≥ 56 px rows;
+  - a sticky run header with a safe-area top;
+  - a **bottom bar** fixed to the screen with Flag, and Next once answered. The in-page Next and the duplicate Flag are hidden on phone;
+  - the page pads for the bar.
+- After answering, the verdict scrolls into view. Tablet gets wider page margins.
+- e2e `drill-layout.spec.ts`:
+  - all viewports: answer by tap (phone/tablet) or key (desktop), feedback, Next;
+  - phone: with a long invented question the bar stays at the bottom while scrolled, Next appears only after answering, and the last option isn't hidden behind the bar.
+- Unit 189, e2e 90 passed + 8 skipped.

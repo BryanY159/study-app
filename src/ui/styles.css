@@ -236,3 +236,17 @@ html { -webkit-text-size-adjust: 100%; }
 .collapse > summary::-webkit-details-marker { display: none; }
 .collapse > summary::after { content: "▾"; margin-left: 8px; color: var(--muted); }
 .collapse[open] > summary::after { content: "▴"; }
+
+/* Run screens on phone: sticky top header, sticky bottom action bar */
+.bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: 10px; align-items: center; padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: var(--surface); border-top: 1px solid var(--border); }
+.bottom-bar .btn { min-height: 48px; }
+.page.with-bottom-bar { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+@media (max-width: 639px) {
+  .run-header { position: sticky; top: 0; z-index: 30; padding-top: env(safe-area-inset-top); }
+  .run-header .inner { padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)); gap: 12px; }
+  .option { min-height: 56px; padding: 14px 14px; gap: 12px; }
+  .option .key { width: 36px; height: 36px; }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .page.narrow { padding-left: max(40px, env(safe-area-inset-left)); padding-right: max(40px, env(safe-area-inset-right)); }
+}
