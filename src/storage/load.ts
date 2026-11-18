@@ -1,9 +1,11 @@
 import { rawText, setAsideName, type DataStore, type DocName, type SetAsideCopy } from './DataStore';
-import { emptyFlags, emptyProgress, FlagsDocSchema, ProgressDocSchema, type FlagsDoc, type ProgressDoc } from './docs';
+import { CardsDocSchema, emptyCards, emptyFlags, emptyProgress, FlagsDocSchema, ProgressDocSchema, type CardsDoc, type FlagsDoc, type ProgressDoc } from './docs';
 
 export interface LoadedDocs {
   progress: ProgressDoc;
   flags: FlagsDoc;
+  /** Flashcard progress (v2.0). */
+  cards: CardsDoc;
   /** Docs that existed but didn't parse; a copy was kept and a fresh doc started. */
   recovered: DocName[];
   /** The unreadable data itself, so the app can offer it as a download. */
@@ -25,7 +27,8 @@ export async function loadDocs(store: DataStore): Promise<LoadedDocs> {
   };
   const progress = await read('progress', ProgressDocSchema, emptyProgress);
   const flags = await read('flags', FlagsDocSchema, emptyFlags);
+  const cards = await read('cards', CardsDocSchema, emptyCards);
   setAside.push(...(store.takeSetAside?.() ?? []));
   const recovered = [...new Set(setAside.map((c) => c.doc))];
-  return { progress, flags, recovered, setAside };
+  return { progress, flags, cards, recovered, setAside };
 }

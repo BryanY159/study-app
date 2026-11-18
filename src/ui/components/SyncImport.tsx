@@ -18,6 +18,7 @@ export function previewLines(p: MergePreview): string[] {
     p.flagsAdded && `+${plural(p.flagsAdded, 'flag')}`,
     p.flagsUpdated && `${plural(p.flagsUpdated, 'flag')} updated`,
     p.flagsRemoved && `${plural(p.flagsRemoved, 'flag')} removed (deleted on the other device)`,
+    p.cardReviews && `${plural(p.cardReviews, 'card review')}`,
   ].filter((x): x is string => !!x);
 }
 
@@ -27,7 +28,7 @@ export function previewLines(p: MergePreview): string[] {
  * the current data is saved first, then she confirms after seeing both counts.
  */
 export function useSyncImport(onDone: (r: ImportResult) => void) {
-  const { progress, flags, restoreBackup, mergeSyncFile, meta, shareEnv, now } = useApp();
+  const { progress, flags, cards, restoreBackup, mergeSyncFile, meta, shareEnv, now } = useApp();
   const [pending, setPending] = useState<{ file: SyncFile; upgradedFrom: number | null; how: 'merge' | 'replace'; safetyName: string | null } | null>(null);
 
   const pick = async (file: File | undefined) => {
@@ -46,16 +47,16 @@ export function useSyncImport(onDone: (r: ImportResult) => void) {
   if (!pending) return { pick, panel: null };
 
   const { file } = pending;
-  const preview = previewMerge({ progress, flags }, file);
+  const preview = previewMerge({ progress, flags, cards }, file);
   const lines = previewLines(preview);
-  const here = fileCounts({ progress, flags });
+  const here = fileCounts({ progress, flags, cards });
   const there = fileCounts(file);
   const from = `${file.device ? `“${file.device}”` : 'a device with no name'}, exported ${new Date(file.createdAt).toLocaleString()}`;
 
   const startReplace = () => {
     // Straight from the click, so the Share sheet may open on a phone.
     const name = `study-sync-before-replace-${fileStamp(now())}.json`;
-    void deliverFile(name, JSON.stringify(makeSyncFile(progress, flags, { device: meta.deviceLabel ?? '', now: now() })), shareEnv);
+    void deliverFile(name, JSON.stringify(makeSyncFile(progress, flags, { device: meta.deviceLabel ?? '', cards, now: now() })), shareEnv);
     setPending({ ...pending, safetyName: name });
   };
 
@@ -63,7 +64,7 @@ export function useSyncImport(onDone: (r: ImportResult) => void) {
     <section className="card stack" role="dialog" aria-label="Import sync file" data-testid="sync-import">
       <h2>Import sync file</h2>
       <p className="small muted" data-testid="sync-from">
-        From {from}.{pending.upgradedFrom === 1 && ' This is a backup from an older version of the app; it was upgraded and can be used like a sync file.'}
+        From {from}.{pending.upgradedFrom !== null && ' This file is from an older version of the app; it was upgraded and can be used like any sync file.'}
       </p>
 
       {!pending.safetyName && (

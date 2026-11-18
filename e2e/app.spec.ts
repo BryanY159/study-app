@@ -76,7 +76,7 @@ test('sync export works and an answer survives a reload (IndexedDB)', async ({ p
   const d = await download;
   expect(d.suggestedFilename()).toMatch(/^study-sync-laptop-\d{4}-\d{2}-\d{2}\.json$/);
   const file = JSON.parse(readFileSync(await d.path(), 'utf8'));
-  expect(file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 2, device: 'Laptop' });
+  expect(file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 3, device: 'Laptop', cards: { schemaVersion: 1 } });
   expect(file.progress.attempts.length).toBeGreaterThanOrEqual(3);
 });
 

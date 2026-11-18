@@ -79,7 +79,7 @@ describe('C-4: startup failures show an error screen', () => {
     expect(screen.getByTestId('error-details').textContent).toMatch(/SecurityError/);
     fireEvent.click(screen.getByRole('button', { name: 'Download rescue file' }));
     await waitFor(() => expect(downloads.map((d) => d.name)).toEqual([expect.stringMatching(/^study-sync-rescue-.*\.json$/)]));
-    expect(JSON.parse(await downloads[0].text)).toMatchObject({ kind: 'studyapp-sync', formatVersion: 2 });
+    expect(JSON.parse(await downloads[0].text)).toMatchObject({ kind: 'studyapp-sync', formatVersion: 3 });
 
     blocked = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -129,7 +129,7 @@ describe('first start of v1.5: data from v1.4 moves over once', () => {
     const old = { ...emptyProgress(), updatedAt: '2026-11-10T00:00:00.000Z', attempts: [attempt('q-a-0001', true), attempt('q-a-0002', false)] };
     const oldFlags: FlagsDoc = {
       ...emptyFlags(),
-      flags: [{ id: 'flag-1', packId: 'test-pack', packVersion: 1, questionId: 'q-a-0001', reason: 'typo', comment: 'kept', mode: 'drill', source: 'user', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z' }],
+      flags: [{ id: 'flag-1', packId: 'test-pack', packVersion: 1, itemType: 'question', questionId: 'q-a-0001', reason: 'typo', comment: 'kept', mode: 'drill', source: 'user', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z' }],
     };
     localStorage.setItem('studyapp:progress', JSON.stringify(old));
     localStorage.setItem('studyapp:flags', JSON.stringify(oldFlags));

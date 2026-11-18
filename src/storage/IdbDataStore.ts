@@ -150,12 +150,12 @@ export class IdbDataStore implements DataStore, MetaStore {
  * For the error screens: read whatever the database still holds, without the app.
  * Returns null if it can't be opened at all.
  */
-export async function readRawData(factory: IDBFactory | undefined = globalThis.indexedDB): Promise<{ progress: unknown; flags: unknown; copies: { name: string; text: string }[] } | null> {
+export async function readRawData(factory: IDBFactory | undefined = globalThis.indexedDB): Promise<{ progress: unknown; flags: unknown; cards: unknown; copies: { name: string; text: string }[] } | null> {
   if (!factory) return null;
   try {
     const s = await IdbDataStore.open(factory);
     try {
-      return { progress: await s.read('progress'), flags: await s.read('flags'), copies: await s.listCopies() };
+      return { progress: await s.read('progress'), flags: await s.read('flags'), cards: await s.read('cards'), copies: await s.listCopies() };
     } finally {
       s.close();
     }

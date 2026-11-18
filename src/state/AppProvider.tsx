@@ -4,17 +4,44 @@ import type { Pack } from '../pack/schema';
 import { prunePreflags, seedPreflags } from '../engine/flags';
 import { indexPack, type PackIndex } from '../engine/packIndex';
 import type { DataStore, Meta, MetaStore, SetAsideCopy } from '../storage/DataStore';
-import type { Attempt, Flag, FlagsDoc, ProgressDoc, Session } from '../storage/docs';
+import { nextState, type Rating } from '../engine/leitner';
+import { cardKey, emptyCards, type Attempt, type CardsDoc, type CardStateDoc, type Flag, type FlagsDoc, type ProgressDoc, type Session } from '../storage/docs';
 import { loadDocs } from '../storage/load';
 import { choosePacks, loadImportedPacks, saveImportedPack } from '../storage/packStore';
 import { noUpdates, type UpdateSource } from '../pwa/updates';
 import { browserShareEnv, type ShareEnv } from '../storage/backup';
 import { requestPersistence, type Persistence, type StorageManagerLike } from '../storage/persist';
-import { mergeFlagsForSync, mergeProgressForSync, sameDoc } from '../storage/sync';
+import { mergeCardsForSync, mergeFlagsForSync, mergeProgressForSync, sameDoc } from '../storage/sync';
 import { cleanLabel, type SyncFile } from '../storage/syncFile';
 import { StartupError } from '../ui/screens/StartupError';
 
 export type SaveStatus = 'saved' | 'saving' | 'error';
+
+/** A card session in progress. */
+export interface CardRun {
+  packId: string;
+  mode: 'due-new' | 'due' | 'cram';
+  /** Card ids in order; Again re-inserts a card later in the queue. */
+  queue: string[];
+  pos: number;
+  flipped: boolean;
+  /** One entry per rating made this session (an undone one is removed). */
+  rated: { cardId: string; rating: Rating; firstTry: boolean }[];
+  /** What the last rating changed, so Undo can put it back (only until the next card is shown). */
+  undo: CardUndo | null;
+  startedAt: string;
+  /** Topics chosen, for "Drill these topics". */
+  topicIds: string[];
+}
+
+/** Enough to reverse one rating. */
+export interface CardUndo {
+  reviewId: string;
+  key: string;
+  /** The state before the rating; null = the card was new. */
+  prev: CardStateDoc | null;
+  cram: boolean;
+}
 
 /** An in-progress drill. Not persisted: every answer is saved as an attempt as it happens. */
 export interface DrillRun {
@@ -32,6 +59,10 @@ export interface AppState {
   ix: PackIndex | null;
   progress: ProgressDoc;
   flags: FlagsDoc;
+  /** Flashcard progress: state per card + review log. */
+  cards: CardsDoc;
+  /** The card session in progress (not persisted; every rating is saved as it happens). */
+  cardRun: CardRun | null;
   saveStatus: SaveStatus;
   storeKind: DataStore['kind'];
   recovered: string[];
@@ -60,10 +91,16 @@ export interface AppActions {
   removeFlag: (id: string) => void;
   importPack: (text: string) => Promise<{ ok: true; pack: Pack; replaced: number | null } | { ok: false; error: string }>;
   /** Replace: progress and flags become the file's (the caller confirms and saves a safety copy first). */
-  restoreBackup: (b: Pick<SyncFile, 'progress' | 'flags'>) => void;
+  restoreBackup: (b: Pick<SyncFile, 'progress' | 'flags'> & { cards?: CardsDoc }) => void;
   /** Merge: adds what the file has that this device doesn't (sync rules, see sync.ts). */
-  mergeSyncFile: (b: Pick<SyncFile, 'progress' | 'flags'>) => void;
+  mergeSyncFile: (b: Pick<SyncFile, 'progress' | 'flags'> & { cards?: CardsDoc }) => void;
   setActivePack: (packId: string) => void;
+  setCardRun: (r: CardRun | null) => void;
+  /** Rate a card: logs the review and (unless cramming) moves it between boxes. Returns what Undo needs. */
+  rateCard: (a: { packId: string; cardId: string; rating: Rating; cram: boolean; examDate?: string }) => CardUndo;
+  /** Undo the last rating: the review is removed (tombstoned) and the card's previous state restored. */
+  undoRating: (u: CardUndo) => void;
+  setNewCardsPerDay: (n: number) => void;
   setDeviceLabel: (label: string) => void;
   markExported: () => void;
   snoozeReminder: (until: string) => void;
@@ -114,6 +151,8 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
   const [packs, setPacks] = useState<Pack[]>(bundledPacks);
   const [progress, setProgress] = useState<ProgressDoc | null>(null);
   const [flags, setFlags] = useState<FlagsDoc | null>(null);
+  const [cards, setCards] = useState<CardsDoc>(emptyCards);
+  const [cardRun, setCardRun] = useState<CardRun | null>(null);
   const [setAside, setSetAside] = useState<SetAsideCopy[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [drill, setDrill] = useState<DrillRun | null>(null);
@@ -122,7 +161,7 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
   const [share] = useState<ShareEnv>(() => shareEnv ?? browserShareEnv());
   const writes = useRef(Promise.resolve());
   // Latest docs, so actions fired in quick succession build on each other.
-  const latest = useRef<{ progress: ProgressDoc | null; flags: FlagsDoc | null }>({ progress: null, flags: null });
+  const latest = useRef<{ progress: ProgressDoc | null; flags: FlagsDoc | null; cards: CardsDoc }>({ progress: null, flags: null, cards: emptyCards() });
 
   useEffect(() => {
     let alive = true;
@@ -134,7 +173,8 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
           'Loading your saved data',
         );
         if (!alive) return;
-        latest.current = { progress: docs.progress, flags: docs.flags };
+        latest.current = { progress: docs.progress, flags: docs.flags, cards: docs.cards };
+        setCards(docs.cards);
         setProgress(docs.progress);
         setFlags(docs.flags);
         setSetAside(docs.setAside);
@@ -179,7 +219,7 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
 
   /** Write-through: update state now, persist in order. */
   const persist = useCallback(
-    (doc: 'progress' | 'flags', data: ProgressDoc | FlagsDoc, replace = false) => {
+    (doc: 'progress' | 'flags' | 'cards', data: ProgressDoc | FlagsDoc | CardsDoc, replace = false) => {
       setSaveStatus('saving');
       writes.current = writes.current
         .then(() => store.write(doc, data, { replace }))
@@ -211,6 +251,17 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
       latest.current.flags = next;
       setFlags(next);
       persist('flags', next, opts.replace);
+    },
+    [persist],
+  );
+
+  const updateCards = useCallback(
+    (fn: (c: CardsDoc) => CardsDoc, opts: ChangeOptions = {}) => {
+      const changed = fn(latest.current.cards);
+      const next = opts.system ? changed : { ...changed, updatedAt: new Date().toISOString() };
+      latest.current.cards = next;
+      setCards(next);
+      persist('cards', next, opts.replace);
     },
     [persist],
   );
@@ -297,17 +348,44 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
         const restoredAt = new Date().toISOString();
         updateProgress(() => ({ ...b.progress, restoredAt }), { replace: true });
         updateFlags(() => ({ ...b.flags, restoredAt }), { replace: true });
+        updateCards(() => ({ ...(b.cards ?? emptyCards()), restoredAt }), { replace: true });
       },
       mergeSyncFile: (b) => {
         updateProgress((p) => mergeProgressForSync(p, b.progress));
         updateFlags((f) => mergeFlagsForSync(f, b.flags));
+        if (b.cards) updateCards((c) => mergeCardsForSync(c, b.cards!));
       },
+      setCardRun,
+      rateCard: ({ packId, cardId, rating, cram, examDate }) => {
+        const key = cardKey(packId, cardId);
+        const at = now();
+        const reviewId = newId('rev');
+        const prev = latest.current.cards.states[key] ?? null;
+        updateCards((c) => ({
+          ...c,
+          reviews: [...c.reviews, { id: reviewId, cardKey: key, rating, at: at.toISOString(), device: meta.deviceLabel ?? '', cram }],
+          // A cram session never changes the schedule.
+          states: cram ? c.states : { ...c.states, [key]: nextState(prev && !prev.fresh ? prev : undefined, rating, at, examDate) },
+        }));
+        return { reviewId, key, prev, cram };
+      },
+      undoRating: (u) => {
+        const at = now().toISOString();
+        updateCards((c) => {
+          const states = { ...c.states };
+          // Restore the previous state with a fresh stamp, so the undo wins a merge.
+          // A card that was new goes back to "new" (fresh), rather than disappearing, for the same reason.
+          if (!u.cram) states[u.key] = u.prev ? { ...u.prev, updatedAt: at } : { box: 1, dueDate: '0000-00-00', lastReviewedAt: '', updatedAt: at, fresh: true };
+          return { ...c, states, reviews: c.reviews.filter((r) => r.id !== u.reviewId), undone: [...c.undone, { id: u.reviewId, at }] };
+        });
+      },
+      setNewCardsPerDay: (n) => updateProgress((p) => ({ ...p, settings: { ...p.settings, newCardsPerDay: Math.max(0, Math.min(500, Math.round(n))) } })),
       setActivePack: (packId) => updateProgress((p) => ({ ...p, settings: { ...p.settings, activePackId: packId } })),
       setDeviceLabel: (label) => patchMeta({ deviceLabel: cleanLabel(label) || undefined }),
       markExported: () => patchMeta({ lastExportAt: now().toISOString(), reminderSnoozedUntil: undefined }),
       snoozeReminder: (until) => patchMeta({ reminderSnoozedUntil: until }),
     }),
-    [ix, now, packs, patchMeta, saveImported, updateFlags, updateProgress],
+    [ix, now, packs, patchMeta, saveImported, updateFlags, updateProgress, updateCards, meta.deviceLabel],
   );
 
   if (loadError) return <StartupError title="Your saved data couldn't be loaded" error={loadError} />;
@@ -318,6 +396,8 @@ export function AppProvider({ store, bundledPacks, loadImported = loadImportedPa
     ix,
     progress,
     flags,
+    cards,
+    cardRun,
     saveStatus,
     storeKind: store.kind,
     recovered: [...new Set(setAside.map((c) => c.doc))],

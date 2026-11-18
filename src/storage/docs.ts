@@ -57,7 +57,12 @@ export const ProgressDocSchema = z.object({
   attempts: z.array(AttemptSchema),
   sessions: z.array(SessionSchema),
   activeMock: ActiveMockSchema.nullable(),
-  settings: z.object({ hideFlagged: z.boolean(), activePackId: z.string().nullable().default(null) }),
+  settings: z.object({
+    hideFlagged: z.boolean(),
+    activePackId: z.string().nullable().default(null),
+    /** Flashcards: new cards per day (device-local; FR-13). */
+    newCardsPerDay: z.number().int().min(0).max(500).default(20),
+  }),
 });
 
 import { FLAG_REASONS } from '../pack/schema';
@@ -68,6 +73,9 @@ export const FlagSchema = z.object({
   id: z.string(),
   packId: z.string(),
   packVersion: z.number(),
+  /** What is flagged (flags v2). Card flags came with flashcards. */
+  itemType: z.enum(['question', 'card']).default('question'),
+  /** The flagged item's id: a question id, or a card id when itemType is 'card'. */
   questionId: z.string(),
   reason: z.enum(FLAG_REASONS),
   comment: z.string(),
@@ -82,8 +90,14 @@ export const FlagSchema = z.object({
 /** A removed flag, so merging with an older copy doesn't bring it back. removedAt "" = removed by the app, not by her. */
 export const TombstoneSchema = z.object({ id: z.string(), removedAt: z.string() });
 
+/**
+ * Flags doc. v2 added itemType (card flags). v1 docs are upgraded on read (every v1
+ * flag is a question flag). An older app sees v2 as newer and leaves it untouched
+ * instead of stripping itemType (newer-version protection).
+ */
+export const FLAGS_VERSION = 2;
 export const FlagsDocSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]).transform(() => FLAGS_VERSION as 2),
   updatedAt: z.string().default(''),
   restoredAt: z.string().default(''),
   flags: z.array(FlagSchema),
@@ -106,7 +120,52 @@ export const emptyProgress = (): ProgressDoc => ({
   attempts: [],
   sessions: [],
   activeMock: null,
-  settings: { hideFlagged: false, activePackId: null },
+  settings: { hideFlagged: false, activePackId: null, newCardsPerDay: 20 },
 });
 
-export const emptyFlags = (): FlagsDoc => ({ schemaVersion: 1, updatedAt: '', restoredAt: '', flags: [], removed: [] });
+export const emptyFlags = (): FlagsDoc => ({ schemaVersion: 2, updatedAt: '', restoredAt: '', flags: [], removed: [] });
+
+// ---- Flashcard progress (FR-13) ------------------------------------------------
+// cardKey = packId|cardId. State per card + an append-only review log. An undone
+// review leaves a tombstone, so merging with an older copy can't bring it back.
+
+export const cardKey = (packId: string, cardId: string): string => `${packId}|${cardId}`;
+
+export const CardStateSchema = z.object({
+  box: z.number().int().min(1).max(5),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  lastReviewedAt: z.string(),
+  updatedAt: z.string(),
+  /** Back to "new" (its first rating was undone). Kept as a state, not deleted, so the undo wins a merge. */
+  fresh: z.boolean().optional(),
+});
+
+export const CardReviewSchema = z.object({
+  id: z.string(),
+  cardKey: z.string(),
+  rating: z.enum(['again', 'got-it']),
+  at: z.string(),
+  /** The device label at the time (for her history; not used by merging). */
+  device: z.string().default(''),
+  /** Cram reviews are logged but never change the schedule. */
+  cram: z.boolean().default(false),
+});
+
+export const CardsDocSchema = z.object({
+  schemaVersion: z.literal(1),
+  updatedAt: z.string().default(''),
+  restoredAt: z.string().default(''),
+  states: z.record(z.string(), CardStateSchema).default({}),
+  reviews: z.array(CardReviewSchema).default([]),
+  /** Undone reviews (Undo in a card session). */
+  undone: z.array(z.object({ id: z.string(), at: z.string() })).default([]),
+});
+
+export type CardStateDoc = z.infer<typeof CardStateSchema>;
+export type CardReview = z.infer<typeof CardReviewSchema>;
+export type CardsDoc = z.infer<typeof CardsDocSchema>;
+
+export const emptyCards = (): CardsDoc => ({ schemaVersion: 1, updatedAt: '', restoredAt: '', states: {}, reviews: [], undone: [] });
+
+/** The highest schemaVersion this app reads for each doc; a higher one is "newer" and left untouched. */
+export const MAX_DOC_VERSION = { progress: 1, flags: FLAGS_VERSION, cards: 1 } as const;

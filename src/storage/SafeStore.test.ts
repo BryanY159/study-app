@@ -91,9 +91,9 @@ describe('SafeStore', () => {
     expect(ids(await inner.read('progress'))).toEqual(['a1']);
   });
 
-  it('I-2: a doc saved by a newer app version is never written over', async () => {
+  it('I-2: a doc saved by a newer app version is never written over (flags are v2 now, so v3 is newer)', async () => {
     const { inner, safe } = setup();
-    const future = JSON.stringify({ schemaVersion: 2, flags: {} });
+    const future = JSON.stringify({ schemaVersion: 3, flags: {} });
     inner.docs.set('flags', future);
     expect(await safe.read('flags')).toBeNull();
     await expect(safe.write('flags', flagsDoc('t', [flag('u1')]))).rejects.toThrow(/newer version/);
@@ -130,10 +130,10 @@ describe('SafeStore', () => {
 
   it('a newer-version doc found during a save (IndexedDB) is left untouched', async () => {
     const inner = await IdbDataStore.open(new IDBFactory());
-    await inner.write('flags', { schemaVersion: 2 });
+    await inner.write('flags', { schemaVersion: 3 });
     const safe = new SafeStore(inner);
     await expect(safe.write('flags', flagsDoc('t', [flag('u1')]), { replace: true })).rejects.toThrow(/newer version/);
-    expect(await inner.read('flags')).toEqual({ schemaVersion: 2 });
+    expect(await inner.read('flags')).toEqual({ schemaVersion: 3 });
     expect(safe.newerVersionData).toBe(true);
   });
 

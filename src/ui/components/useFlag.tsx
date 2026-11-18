@@ -18,7 +18,7 @@ export function useFlag(q: Question | undefined, mode: 'drill' | 'mock' | 'revie
         onClose={() => setOpen(false)}
         onSave={(reason, comment) => {
           if (existing) updateFlag(existing.id, { reason, comment });
-          else addFlag({ questionId: q.id, reason, comment, mode, source: 'user' });
+          else addFlag({ itemType: 'question', questionId: q.id, reason, comment, mode, source: 'user' });
           setOpen(false);
         }}
       />

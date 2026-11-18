@@ -293,7 +293,7 @@ describe('sync & backup', () => {
   it('a file from a newer app version is refused and nothing changes', async () => {
     const store = await withAnswers(['a1']);
     renderSync(store);
-    const future = new File([JSON.stringify({ ...makeSyncFile(emptyProgress(), emptyFlags(), { device: '' }), formatVersion: 3 })], 'f.json');
+    const future = new File([JSON.stringify({ ...makeSyncFile(emptyProgress(), emptyFlags(), { device: '' }), formatVersion: 4 })], 'f.json');
     fireEvent.change(await screen.findByTestId('sync-input'), { target: { files: [future] } });
     expect((await screen.findByTestId('data-message')).textContent).toMatch(/newer version of the app/);
     expect(((await store.read('progress')) as ProgressDoc).attempts).toHaveLength(1);

@@ -48,6 +48,7 @@ export function seedPreflags(flags: readonly Flag[], packs: readonly Pack[], now
         id: `preflag-${p.packId}-${q.id}`,
         packId: p.packId,
         packVersion: p.version,
+        itemType: 'question',
         questionId: q.id,
         reason: q.preflag.reason,
         comment: '',

@@ -1,5 +1,19 @@
 import type { DocName } from './DataStore';
-import { FlagsDocSchema, ProgressDocSchema, type Flag, type FlagsDoc, type ProgressDoc, type Session, type Tombstone } from './docs';
+import {
+  CardsDocSchema,
+  emptyCards,
+  FlagsDocSchema,
+  MAX_DOC_VERSION,
+  ProgressDocSchema,
+  type CardReview,
+  type CardsDoc,
+  type CardStateDoc,
+  type Flag,
+  type FlagsDoc,
+  type ProgressDoc,
+  type Session,
+  type Tombstone,
+} from './docs';
 
 // Merging two copies of a doc (browser and data folder, or a stale in-memory
 // copy and what's saved). Nothing she did is dropped:
@@ -98,12 +112,15 @@ export const docCodec: DocCodec = {
   parse(doc, raw) {
     if (raw && typeof raw === 'object' && '__unparseable' in raw) return { ok: false, reason: 'the file is not valid JSON' };
     const version = (raw as { schemaVersion?: unknown } | null)?.schemaVersion;
-    if (typeof version === 'number' && version > 1) return { ok: false, reason: 'it was saved by a newer version of the app', newerVersion: true };
-    const r = (doc === 'progress' ? ProgressDocSchema : FlagsDocSchema).safeParse(raw);
+    if (typeof version === 'number' && version > MAX_DOC_VERSION[doc]) return { ok: false, reason: 'it was saved by a newer version of the app', newerVersion: true };
+    const schema = doc === 'progress' ? ProgressDocSchema : doc === 'flags' ? FlagsDocSchema : CardsDocSchema;
+    const r = schema.safeParse(raw);
     return r.success ? { ok: true, value: r.data } : { ok: false, reason: 'it is not in the expected format' };
   },
   merge(doc, a, b) {
-    return doc === 'progress' ? mergeProgress(a as ProgressDoc, b as ProgressDoc) : mergeFlags(a as FlagsDoc, b as FlagsDoc);
+    if (doc === 'progress') return mergeProgress(a as ProgressDoc, b as ProgressDoc);
+    if (doc === 'flags') return mergeFlags(a as FlagsDoc, b as FlagsDoc);
+    return mergeCards(a as CardsDoc, b as CardsDoc);
   },
 };
 
@@ -136,14 +153,21 @@ export interface MergePreview {
   flagsAdded: number;
   flagsUpdated: number;
   flagsRemoved: number;
+  cardReviews: number;
 }
 
 export const nothingNew = (p: MergePreview): boolean => Object.values(p).every((n) => n === 0);
 
 /** What a sync Merge would change on this device, worked out before anything is written. */
-export function previewMerge(local: { progress: ProgressDoc; flags: FlagsDoc }, incoming: { progress: ProgressDoc; flags: FlagsDoc }): MergePreview {
+export function previewMerge(
+  local: { progress: ProgressDoc; flags: FlagsDoc; cards?: CardsDoc },
+  incoming: { progress: ProgressDoc; flags: FlagsDoc; cards?: CardsDoc },
+): MergePreview {
   const p = mergeProgressForSync(local.progress, incoming.progress);
   const f = mergeFlagsForSync(local.flags, incoming.flags);
+  const localCards = local.cards ?? emptyCards();
+  const c = mergeCardsForSync(localCards, incoming.cards ?? emptyCards());
+  const reviewIds = new Set(localCards.reviews.map((r) => r.id));
   const attemptIds = new Set(local.progress.attempts.map((a) => a.id));
   const sessionIds = new Set(local.progress.sessions.map((s) => s.id));
   const localFlags = new Map(local.flags.flags.map((x) => [x.id, x]));
@@ -154,5 +178,45 @@ export function previewMerge(local: { progress: ProgressDoc; flags: FlagsDoc }, 
     flagsAdded: f.flags.filter((x) => !localFlags.has(x.id)).length,
     flagsUpdated: f.flags.filter((x) => localFlags.has(x.id) && !sameDoc(x, localFlags.get(x.id))).length,
     flagsRemoved: local.flags.flags.filter((x) => !mergedIds.has(x.id)).length,
+    cardReviews: c.reviews.filter((r) => !reviewIds.has(r.id)).length,
   };
+}
+
+// --- Flashcard progress -------------------------------------------------------
+//   reviews: union by id, minus undone ones (tombstones: an undo is never brought back);
+//   states:  per card, the copy with the newer updatedAt (its latest review, or the undo) wins;
+//   restoredAt: as for the other docs (a copy restored earlier only contributes what came after).
+
+function cardsSinceRestore(d: CardsDoc, r: string): CardsDoc {
+  if (d.restoredAt >= r) return d;
+  return {
+    ...d,
+    reviews: d.reviews.filter((x) => x.at > r),
+    states: Object.fromEntries(Object.entries(d.states).filter(([, s]) => s.updatedAt > r)),
+    undone: d.undone.filter((u) => u.at > r),
+  };
+}
+
+export function mergeCards(x: CardsDoc, y: CardsDoc): CardsDoc {
+  const restoredAt = lastRestore(x, y);
+  const [newer, older] = newerFirst(cardsSinceRestore(x, restoredAt), cardsSinceRestore(y, restoredAt));
+  const undone = new Map<string, { id: string; at: string }>();
+  for (const u of [...older.undone, ...newer.undone]) if (!undone.has(u.id) || u.at > undone.get(u.id)!.at) undone.set(u.id, u);
+  const reviews = new Map<string, CardReview>();
+  for (const r of [...older.reviews, ...newer.reviews]) if (!undone.has(r.id)) reviews.set(r.id, r);
+  const states: Record<string, CardStateDoc> = { ...older.states };
+  for (const [k, s] of Object.entries(newer.states)) if (!states[k] || s.updatedAt >= states[k].updatedAt) states[k] = s;
+  return {
+    ...newer,
+    restoredAt,
+    states,
+    reviews: [...reviews.values()].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.id < b.id ? -1 : 1)),
+    undone: [...undone.values()],
+  };
+}
+
+/** A file from another device: merged in full (restoredAt not applied across devices), this device keeps its stamps. */
+export function mergeCardsForSync(local: CardsDoc, incoming: CardsDoc): CardsDoc {
+  const merged = mergeCards({ ...local, restoredAt: '' }, { ...incoming, restoredAt: '' });
+  return { ...merged, schemaVersion: local.schemaVersion, updatedAt: local.updatedAt, restoredAt: local.restoredAt };
 }

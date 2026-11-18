@@ -19,6 +19,7 @@ export const prog = (updatedAt: string, attemptIds: string[] = []): ProgressDoc 
 export const flag = (id: string, comment = '', updatedAt = '2026-11-02T00:00:00.000Z'): Flag => ({
   id,
   packId: 'test-pack',
+  itemType: 'question',
   packVersion: 1,
   questionId: `q-a-000${id.slice(-1)}`,
   reason: 'answer-wrong',

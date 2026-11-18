@@ -28,6 +28,7 @@ const prog = (updatedAt: string, patch: Partial<ProgressDoc> = {}): ProgressDoc 
 const flag = (id: string, comment: string, updatedAt: string): Flag => ({
   id,
   packId: 'test-pack',
+  itemType: 'question',
   packVersion: 1,
   questionId: 'q1',
   reason: 'unclear',
@@ -50,8 +51,8 @@ describe('mergeProgress', () => {
   });
 
   it('settings and the exam in progress come from the newer copy; a submitted exam stays submitted', () => {
-    const older = prog('2026-11-05', { sessions: [session('s1')], activeMock: mock('s1'), settings: { hideFlagged: false, activePackId: null } });
-    const newer = prog('2026-11-06', { sessions: [session('s1', '2026-11-06')], activeMock: null, settings: { hideFlagged: true, activePackId: null } });
+    const older = prog('2026-11-05', { sessions: [session('s1')], activeMock: mock('s1'), settings: { hideFlagged: false, activePackId: null, newCardsPerDay: 20 } });
+    const newer = prog('2026-11-06', { sessions: [session('s1', '2026-11-06')], activeMock: null, settings: { hideFlagged: true, activePackId: null, newCardsPerDay: 20 } });
     const m = mergeProgress(older, newer);
     expect(m.activeMock).toBeNull();
     expect(m.settings.hideFlagged).toBe(true);
@@ -123,7 +124,7 @@ describe('sync merge (file from another device)', () => {
   it('adds the other device\'s answers and flags; the preview counts them first', () => {
     const phone = device('2026-11-05', ['p1', 'p2'], [flag('f1', 'phone', '2026-11-02')]);
     const laptop = device('2026-11-06', ['l1', 'l2', 'l3'], [flag('f2', 'laptop', '2026-11-03')]);
-    expect(previewMerge(phone, laptop)).toEqual({ answers: 3, sessions: 0, flagsAdded: 1, flagsUpdated: 0, flagsRemoved: 0 });
+    expect(previewMerge(phone, laptop)).toEqual({ answers: 3, sessions: 0, flagsAdded: 1, flagsUpdated: 0, flagsRemoved: 0, cardReviews: 0 });
     const m = merge(phone, laptop);
     expect(attemptIds(m)).toEqual(['l1', 'l2', 'l3', 'p1', 'p2']);
     expect(m.flags.flags.map((f) => f.id)).toEqual(['f1', 'f2']);
@@ -158,10 +159,10 @@ describe('sync merge (file from another device)', () => {
   });
 
   it('settings and the exam in progress stay this device\'s, even when the file is newer', () => {
-    const local = device('2026-11-05', ['p1'], [], [], { sessions: [session('s1')], activeMock: mock('s1'), settings: { hideFlagged: false, activePackId: 'test-pack' } });
-    const incoming = device('2026-11-09', ['l1'], [], [], { activeMock: mock('s2'), settings: { hideFlagged: true, activePackId: 'other' } });
+    const local = device('2026-11-05', ['p1'], [], [], { sessions: [session('s1')], activeMock: mock('s1'), settings: { hideFlagged: false, activePackId: 'test-pack', newCardsPerDay: 20 } });
+    const incoming = device('2026-11-09', ['l1'], [], [], { activeMock: mock('s2'), settings: { hideFlagged: true, activePackId: 'other', newCardsPerDay: 20 } });
     const m = merge(local, incoming);
-    expect(m.progress.settings).toEqual({ hideFlagged: false, activePackId: 'test-pack' });
+    expect(m.progress.settings).toEqual({ hideFlagged: false, activePackId: 'test-pack', newCardsPerDay: 20 });
     expect(m.progress.activeMock?.sessionId).toBe('s1');
     expect(m.progress.updatedAt).toBe('2026-11-05');
   });

@@ -1,6 +1,6 @@
 import { readRawData } from './IdbDataStore';
 import { legacyRawEntries, safeLocalStorage } from './legacy';
-import { emptyFlags, emptyProgress, FlagsDocSchema, ProgressDocSchema } from './docs';
+import { CardsDocSchema, emptyCards, emptyFlags, emptyProgress, FlagsDocSchema, ProgressDocSchema } from './docs';
 import { makeSyncFile } from './syncFile';
 
 // Getting a file off the device: the Share sheet on touch devices (iPhone/iPad:
@@ -78,9 +78,10 @@ export async function rescueBackup(now = new Date(), factory?: IDBFactory, stora
   };
   const progress = pick(ProgressDocSchema, idb?.progress, parseJson(legacy['studyapp:progress'])) ?? emptyProgress();
   const flags = pick(FlagsDocSchema, idb?.flags, parseJson(legacy['studyapp:flags'])) ?? emptyFlags();
+  const cards = pick(CardsDocSchema, idb?.cards) ?? emptyCards();
   const raw = {
-    indexedDB: idb ? { progress: idb.progress, flags: idb.flags, setAside: idb.copies } : 'could not be opened',
+    indexedDB: idb ? { progress: idb.progress, flags: idb.flags, cards: idb.cards, setAside: idb.copies } : 'could not be opened',
     localStorage: legacy,
   };
-  return JSON.stringify({ ...makeSyncFile(progress, flags, { device: '', now }), raw }, null, 2);
+  return JSON.stringify({ ...makeSyncFile(progress, flags, { device: '', cards, now }), raw }, null, 2);
 }

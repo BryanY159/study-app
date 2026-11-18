@@ -112,3 +112,22 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
 - **`@study/pack/engine` contract addition:** `nextState`, `buildQueue`, `requeueAgain`, `deckCounts`, the date helpers and constants, and the `CardState` / `QueueMode` / `Rating` types.
 - Unit 237 (+14): intervals, boxes, a new card, the exam cap (before, on and after the cap; no exam), the daily limit across midnight, queue order, Due only, cram determinism, re-queue positions 0, 1, 3 and last, and counts.
 - **Process slip, fixed:** the M6.1 and M6.2 commits went in with a typecheck error in `src/pack/cards.test.ts` (a test helper typed too narrowly). My commit command didn't stop when the typecheck failed. Fixed in the next commit, and from here every commit goes through a gate script (`set -e`: leak guard, typecheck, unit, e2e, leak guard on `dist/`) that must print GATE-OK first.
+### M6.3 Card state, review log and sync — done
+- A new saved document, **`cards`** (`CardsDocSchema` v1):
+  - `states` keyed `packId|cardId` (`box`, `dueDate`, `lastReviewedAt`, `updatedAt`, plus `fresh` for a card whose first rating was undone);
+  - `reviews` (`id`, `cardKey`, `rating`, `at`, `device`, `cram`);
+  - `undone` tombstones.
+- It goes through `SafeStore` like the other docs: merge on write, newer-version freeze, quarantine. `docCodec` now checks each doc against its own maximum version (`MAX_DOC_VERSION`: progress 1, flags 2, cards 1).
+- **Merge:**
+  - reviews are unioned by id, minus undone ones (an undo is never brought back);
+  - each card's state comes from the copy with the newer `updatedAt`; an undo restores the previous state with a fresh stamp, so it wins;
+  - `restoredAt` behaves as for the other docs; `mergeCardsForSync` ignores it across devices.
+- **Flags v2 (D3):** flags gain `itemType: 'question' | 'card'` (default `'question'`; `questionId` holds the item's id). v1 docs are upgraded on read, and an older app treats v2 as newer and leaves it alone.
+- **Sync file format 3** adds `cards`, with the upgrade chain 1 → 2 → 3, so a v1.4 backup and a v1.5 sync file both import. The Merge preview adds "N card reviews"; Replace, the safety copy and the rescue file all include cards.
+- `progress.settings.newCardsPerDay` defaults to 20 and is device-local. `AppProvider` gains `cards`, `cardRun`, `rateCard` (cram never changes the schedule), `undoRating` and `setNewCardsPerDay`.
+- New fixture `test/fixtures/sample-pack.v1-5-sync.json` from `test/makeV15Sync.ts`.
+- Tests:
+  - unit: card merge (union, newest state, an undo beats an older copy both ways, merge through `SafeStore`), sync idempotent with cards and the preview count, a cards doc from a newer version refused, flags v1 → v2, and the v1.5 file upgraded to format 3;
+  - existing tests updated for format 3 and flags v2.
+- Gate: unit 246, e2e 104 + 13 skipped.
+- A gate run once hung in e2e. A direct rerun passed in 29 s, so the gate's e2e step is now capped at 5 minutes and a hang fails it.

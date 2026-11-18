@@ -2,7 +2,7 @@
 // newer-version protection) wrapped around a raw DataStore: IndexedDB in the
 // browser (IdbDataStore), or MemoryDataStore in tests.
 
-export type DocName = 'progress' | 'flags';
+export type DocName = 'progress' | 'flags' | 'cards';
 
 export interface WriteOptions {
   /** Replace the saved doc instead of merging into it (restore / Replace import). */

@@ -15,7 +15,7 @@ describe('sync file', () => {
     const r = parseSyncFile(text);
     if (!r.ok) throw new Error(r.error);
     expect(r.upgradedFrom).toBeNull();
-    expect(r.file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 2, appVersion: '9.9.9', device: 'Laptop', createdAt: '2026-11-05T00:00:00.000Z' });
+    expect(r.file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 3, appVersion: '9.9.9', device: 'Laptop', createdAt: '2026-11-05T00:00:00.000Z', cards: { reviews: [] } });
     expect(r.file.progress.settings.hideFlagged).toBe(true);
   });
 
@@ -28,9 +28,10 @@ describe('sync file', () => {
     expect(parseSyncFile('nope')).toEqual({ ok: false, error: expect.stringMatching(/not valid JSON/) });
     expect(parseSyncFile('{"a":1}')).toEqual({ ok: false, error: expect.stringMatching(/not a Study app sync file/) });
     const good = makeSyncFile(emptyProgress(), emptyFlags(), { device: '' });
-    expect(parseSyncFile(JSON.stringify({ ...good, formatVersion: 3 }))).toMatchObject({ ok: false, newerVersion: true });
+    expect(parseSyncFile(JSON.stringify({ ...good, formatVersion: 4 }))).toMatchObject({ ok: false, newerVersion: true });
     expect(parseSyncFile(JSON.stringify({ ...good, progress: { ...good.progress, schemaVersion: 2 } }))).toMatchObject({ ok: false, newerVersion: true });
-    expect(parseSyncFile(JSON.stringify({ ...good, flags: { schemaVersion: 2 } }))).toMatchObject({ ok: false, newerVersion: true });
+    expect(parseSyncFile(JSON.stringify({ ...good, flags: { schemaVersion: 3 } }))).toMatchObject({ ok: false, newerVersion: true });
+    expect(parseSyncFile(JSON.stringify({ ...good, cards: { schemaVersion: 2 } }))).toMatchObject({ ok: false, newerVersion: true });
     expect(parseSyncFile(JSON.stringify({ ...good, progress: { schemaVersion: 1, attempts: 'x' } }))).toMatchObject({ ok: false, error: expect.stringMatching(/damaged/) });
   });
 
@@ -56,12 +57,15 @@ describe('v1.4 backups (format 1)', () => {
     expect(LegacyBackupSchema.safeParse(JSON.parse(v14Text)).success).toBe(true);
   });
 
-  it('upgrades to format 2, keeping everything v1.4.1 itself would have read', () => {
+  it('upgrades (1 → 2 → 3), keeping everything v1.4.1 itself would have read', () => {
     const r = parseSyncFile(v14Text);
     if (!r.ok) throw new Error(r.error);
     const v141 = LegacyBackupSchema.parse(JSON.parse(v14Text));
     expect(r.upgradedFrom).toBe(1);
-    expect(r.file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 2, appVersion: '1.4', device: '', createdAt: '2026-11-10T18:00:00.000Z' });
+    expect(r.file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 3, appVersion: '1.4', device: '', createdAt: '2026-11-10T18:00:00.000Z' });
+    expect(r.file.cards.reviews).toEqual([]);
+    expect(r.file.flags.schemaVersion).toBe(2); // flags doc upgraded v1 → v2
+    expect(r.file.flags.flags.every((f) => f.itemType === 'question')).toBe(true);
     expect(r.file.progress).toEqual(v141.progress);
     expect(r.file.flags).toEqual(v141.flags);
     // The two pre-v1.4 answers got their stable legacy ids.
@@ -74,7 +78,7 @@ describe('v1.4 backups (format 1)', () => {
     const r = parseSyncFile(v14Text);
     if (!r.ok) throw new Error(r.error);
     const empty = { progress: emptyProgress(), flags: emptyFlags() };
-    expect(previewMerge(empty, r.file)).toEqual({ answers: 9, sessions: 2, flagsAdded: 2, flagsUpdated: 0, flagsRemoved: 0 });
+    expect(previewMerge(empty, r.file)).toEqual({ answers: 9, sessions: 2, flagsAdded: 2, flagsUpdated: 0, flagsRemoved: 0, cardReviews: 0 });
     const p = mergeProgressForSync(empty.progress, r.file.progress);
     const f = mergeFlagsForSync(empty.flags, r.file.flags);
     expect(p.attempts).toHaveLength(9);

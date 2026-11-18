@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makePack } from '../../test/makePack';
 import { deliverFile, rescueBackup, type ShareEnv } from './backup';
 import { MemoryDataStore } from './DataStore';
-import { emptyFlags, emptyProgress } from './docs';
+import { emptyCards, emptyFlags, emptyProgress } from './docs';
 import { IdbDataStore } from './IdbDataStore';
 import { loadDocs } from './load';
 import { choosePacks, clearImportedPacks, loadImportedPacks, saveImportedPack } from './packStore';
@@ -22,7 +22,7 @@ describe('DataStore', () => {
 
   it('loads empty docs on first run', async () => {
     const r = await loadDocs(new MemoryDataStore());
-    expect(r).toEqual({ progress: emptyProgress(), flags: emptyFlags(), recovered: [], setAside: [] });
+    expect(r).toEqual({ progress: emptyProgress(), flags: emptyFlags(), cards: emptyCards(), recovered: [], setAside: [] });
   });
 });
 

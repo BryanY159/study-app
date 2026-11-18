@@ -7,6 +7,7 @@ const v1 = makePack({ a: 3 });
 const flag: Flag = {
   id: 'f1',
   packId: 'test-pack',
+  itemType: 'question',
   packVersion: 1,
   questionId: 'q-a-0002',
   reason: 'answer-wrong',

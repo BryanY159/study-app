@@ -11,7 +11,7 @@ const SUGGESTIONS = ['Phone', 'Tablet', 'Laptop'];
  * name goes into every file this device exports, so imports can say where a file came from.
  */
 export function ExportButton({ text = 'Export sync file', primary = true, onDone }: { text?: string; primary?: boolean; onDone?: (r: Delivery, name: string) => void }) {
-  const { progress, flags, meta, setDeviceLabel, markExported, shareEnv, now } = useApp();
+  const { progress, flags, cards, meta, setDeviceLabel, markExported, shareEnv, now } = useApp();
   const [asking, setAsking] = useState(false);
   const [draft, setDraft] = useState('');
 
@@ -19,7 +19,7 @@ export function ExportButton({ text = 'Export sync file', primary = true, onDone
   const run = (label: string) => {
     const at = now();
     const name = syncFileName(label, at);
-    const text = JSON.stringify(makeSyncFile(progress, flags, { device: label, now: at }));
+    const text = JSON.stringify(makeSyncFile(progress, flags, { device: label, cards, now: at }));
     void deliverFile(name, text, shareEnv).then((r) => {
       if (r !== 'cancelled') markExported();
       onDone?.(r, name);
