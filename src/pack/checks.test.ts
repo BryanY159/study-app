@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../../test/fixtures/sample-pack.json';
 import { formatIssues, parsePack } from './checks';
+import { cardsOf } from './schema';
 
 const clone = () => structuredClone(fixture) as any;
 
@@ -9,6 +10,18 @@ describe('parsePack', () => {
     const r = parsePack(clone());
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.warnings).toEqual([]);
+  });
+
+  it('the sample pack has flashcards of all four types, a labelled diagram card and an unconfirmed card', () => {
+    const r = parsePack(clone());
+    if (!r.ok) throw new Error(formatIssues(r.errors));
+    const cards = cardsOf(r.pack);
+    expect(new Set(cards.map((c) => c.type))).toEqual(new Set(['term', 'concept', 'cloze', 'diagram']));
+    const diagram = cards.find((c) => c.type === 'diagram')!;
+    expect(diagram.image?.data).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(diagram.image?.labels.map((l) => l.key)).toContain(diagram.label);
+    expect(cards.some((c) => c.status === 'unconfirmed' && c.preflag)).toBe(true);
+    expect(cards.some((c) => c.relatedQuestionIds.length > 0)).toBe(true);
   });
 
   it('reports schema errors with a path', () => {
@@ -35,6 +48,7 @@ describe('parsePack', () => {
       id: `q-alpha-${String(i + 1).padStart(4, '0')}`,
       stem: `Stem ${i}`,
     }));
+    p.flashcards = []; // their related questions were replaced above
     const r = parsePack(p);
     expect(r.ok && r.warnings.some((w) => /letter C/.test(w.message))).toBe(true);
   });

@@ -131,3 +131,7 @@ Baseline (`v1.5.0`, deployed 2026-11-17): unit 143, e2e 19 (Chromium).
   - existing tests updated for format 3 and flags v2.
 - Gate: unit 246, e2e 104 + 13 skipped.
 - A gate run once hung in e2e. A direct rerun passed in 29 s, so the gate's e2e step is now capped at 5 minutes and a hang fails it.
+### M6.4 Fixture cards (Orrin) — done
+- `test/fixtures/sample-pack.json` gets 10 invented cards across all 6 topics: 3 term, 3 concept, 2 cloze, and **1 diagram** (an inline SVG `data:` image of 598 bytes with labels A/B/C, asking about B), plus 1 `unconfirmed` card with a preflag. 8 cards have `relatedQuestionIds`. (The diff is large only because the file was re-serialized.)
+- The fixture still parses with zero errors and warnings. A new test checks the four types, the diagram label and the unconfirmed card. The answer-letter test now drops the cards, since it replaces the questions they point at.
+- Gate: unit 247, e2e 104 + 13 skipped.
