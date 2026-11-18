@@ -1,6 +1,13 @@
 # Plan: build steps 3–6 (PWA, responsive layout, feedback fixes, flashcards)
 
-Status: **DRAFT, waiting for review.** Nothing in it has been built.
+Status: **APPROVED 2026-11-17.** Decisions:
+- D1: yes. Copy the icon SVG, recorded as an approved exception in `CLAUDE.md`.
+- D2, D3, D4: yes.
+- D5: derive a dark set that meets contrast standards; reviewed in the summary.
+- D6: yes.
+- D7: defer the library and switcher, but include the first-run welcome screen
+  (M3.5) and keep importing a newer pack version working (tested).
+- D8: yes.
 Starting point: `main` at `v1.5.0` (IndexedDB storage, sync file).
 Release at the end: **`v2.0.0`**, prepared locally and **not pushed**.
 

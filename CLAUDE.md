@@ -27,6 +27,12 @@ older setups: `/add-dir ../study-app-content/docs`.) Read it there. **Nothing fr
 markup, images or sample data. Implement the behavior and write fresh, generic
 code, tests and docs.
 
+**Approved exceptions** (each approved by the maintainer; nothing else qualifies):
+- `public/icons/app-icon.svg`, copied from the content repo's
+  `docs/mockup-phase2/app-icon.svg` (approved 2026-11-17, decision D1 of
+  `docs/plans/steps-3-6.md`). It is a generic quiz-card graphic with no course
+  content. All PWA icon sizes are generated from it.
+
 ## What this repo is
 - A generic study engine: drill, mock exam, feedback, progress, flags, backups.
   Subjects arrive only as packs imported in the app (History & data → Import pack…).
