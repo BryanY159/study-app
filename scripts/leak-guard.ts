@@ -20,8 +20,10 @@ export const MAX_BYTES = 256 * 1024;
 export const SIZE_EXEMPT = ['package-lock.json'];
 /** File types that usually mean copied course material (slides, transcripts, scans). */
 export const BLOCKED_EXT = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt', '.docx', '.pptx', '.doc', '.ppt'];
-/** Folders where some blocked types are allowed (app icons arrive in a later step). */
+/** Folders where some blocked types are allowed: the generated app icons. */
 export const BINARY_ALLOWED_DIRS = ['public/icons/'];
+/** An image allowed in an icon folder must still be small (icons, not slides). */
+export const MAX_ICON_BYTES = 64 * 1024;
 
 export interface ScanFile {
   path: string; // repo-relative, forward slashes
@@ -62,6 +64,8 @@ export function checkSources(files: ScanFile[]): Problem[] {
     }
     if (BLOCKED_EXT.includes(ext) && !BINARY_ALLOWED_DIRS.some((d) => f.path.startsWith(d))) {
       problems.push({ path: f.path, check: 'file-type', message: `${ext} files are not allowed in this repo` });
+    } else if (BLOCKED_EXT.includes(ext) && f.size > MAX_ICON_BYTES) {
+      problems.push({ path: f.path, check: 'size', message: `${f.size} bytes is over the ${MAX_ICON_BYTES}-byte limit for icons` });
     }
     if (BLOCKED_EXT.includes(ext) || f.size > 4 * MAX_BYTES) continue; // don't read binaries or huge files as text
     const text = f.text();

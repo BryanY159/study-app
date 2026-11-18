@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkDist, checkSources, MAX_BYTES, type ScanFile } from './leak-guard';
+import { checkDist, checkSources, MAX_BYTES, MAX_ICON_BYTES, type ScanFile } from './leak-guard';
 
 // Planted leaks are built at runtime (KEY), so this file never contains a
 // literal pack-ID pair that the guard itself would flag.
@@ -36,6 +36,11 @@ describe('leak guard: sources', () => {
   it('fails slides, transcripts and images outside the icon folder', () => {
     const p = checkSources([file('docs/slides.pdf', ''), file('notes/part-1.txt', ''), file('src/fig.png', ''), file('public/icons/icon-192.png', '')]);
     expect(p.map((x) => x.path)).toEqual(['docs/slides.pdf', 'notes/part-1.txt', 'src/fig.png']);
+  });
+
+  it('fails an image in the icon folder that is too big to be an icon', () => {
+    const p = checkSources([file('public/icons/icon-512.png', '', MAX_ICON_BYTES), file('public/icons/slide.png', '', MAX_ICON_BYTES + 1)]);
+    expect(p).toEqual([expect.objectContaining({ path: 'public/icons/slide.png', check: 'size' })]);
   });
 });
 
