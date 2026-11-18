@@ -6,10 +6,8 @@ export default defineConfig({
   reporter: [['list']],
   use: { browserName: 'chromium', baseURL: 'http://localhost:4173' },
   projects: [
-    // App served by `vite preview` (the same single-file build).
-    { name: 'preview', testMatch: /(drill|tabs|spike|sync|migrate)\.spec\.ts/ },
-    // Built dist/index.html opened straight from disk (file://).
-    { name: 'file', testMatch: /build\.spec\.ts/ },
+    // The built app served by `vite preview`. (The file:// project was retired in step 3.)
+    { name: 'preview' },
   ],
   webServer: {
     command: 'npm run preview',

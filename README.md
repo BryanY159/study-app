@@ -45,7 +45,7 @@ npm ci
 npm run dev        # Vite dev server on http://localhost:5173
 npm run typecheck
 npm test           # Vitest unit tests
-npm run e2e        # builds, then Playwright (served build + file:// build)
+npm run e2e        # builds, then Playwright against the served build
 npx tsx test/makeV14Backup.ts  # rebuild the v1.4-format backup fixture
 npm run build      # dist/index.html: one self-contained file
 npm run leak-guard # add `-- --dist` to also check the build

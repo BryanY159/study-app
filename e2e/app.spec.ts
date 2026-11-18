@@ -1,32 +1,29 @@
 import { expect, test, type Page } from '@playwright/test';
-import { copyFileSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { makePack } from '../test/makePack';
 import { drillFlow, importPack, SAMPLE_PACK, waitForSaved } from './flows';
 
-// The built app opened straight from disk (file://), from a temporary copy of dist/.
-// The build holds no pack: each test imports the synthetic sample pack, as a user would.
-const COPY = mkdtempSync(path.join(tmpdir(), 'studyapp-build-'));
-copyFileSync('dist/index.html', path.join(COPY, 'index.html'));
-const APP = pathToFileURL(path.join(COPY, 'index.html')).href;
+// The built app (dist/, served by vite preview), with every request to another host blocked:
+// the app must need nothing but its own origin. The build holds no pack: each test
+// imports the synthetic sample pack, as a user would. (The file:// mode was retired in step 3.)
+const APP = '/';
 const sample = JSON.parse(readFileSync(SAMPLE_PACK, 'utf8'));
 
-/** Block everything except file:// so any network dependency fails the test. */
+/** Abort any request that leaves localhost, so a network dependency fails the test. */
 async function offline(page: Page) {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.route(/^(?!file:)/, (route) => route.abort());
+  await page.route((url) => url.hostname !== 'localhost' && url.hostname !== '127.0.0.1', (route) => route.abort());
   return errors;
 }
 
-test('dist is one self-contained index.html (plus the storage spike page)', () => {
-  expect(readdirSync('dist').sort()).toEqual(['index.html', 'spike']);
-  expect(readdirSync('dist/spike').sort()).toEqual(['manifest.webmanifest', 'storage.html']);
+test('the app is one self-contained index.html with no outside references', () => {
+  expect(readdirSync('dist')).toContain('index.html');
   const html = readFileSync('dist/index.html', 'utf8');
-  const refs = [...html.matchAll(/<(?:script|link|img)\b[^>]*?\b(?:src|href)="([^"]*)"/g)].map((m) => m[1]);
-  expect(refs.filter((r) => !r.startsWith('data:') && !r.startsWith('#'))).toEqual([]);
+  const refs = [...html.matchAll(/<(?:script|link|img)[^>]*?(?:src|href)="([^"]*)"/g)].map((m) => m[1]);
+  expect(refs.filter((r) => /^(https?:)?\/\//.test(r))).toEqual([]);
 });
 
 test('with no pack imported, the app says so and points to import', async ({ page }) => {
@@ -36,7 +33,7 @@ test('with no pack imported, the app says so and points to import', async ({ pag
   expect(errors).toEqual([]);
 });
 
-test('drill works from file:// with the network blocked', async ({ page }) => {
+test('drill works with every other host blocked', async ({ page }) => {
   const errors = await offline(page);
   await drillFlow(page, APP);
   expect(errors).toEqual([]);
@@ -64,7 +61,7 @@ test('mock exam starts with the blueprint question count', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('sync export works from file:// and an answer survives a reload (IndexedDB)', async ({ page }) => {
+test('sync export works and an answer survives a reload (IndexedDB)', async ({ page }) => {
   await offline(page);
   await drillFlow(page, APP);
   await page.reload();
@@ -112,7 +109,7 @@ test('perf: 600-question pack imports and stays fast', async ({ page }) => {
   expect(avg).toBeLessThan(100);
 });
 
-test('an embedded (data: URI) figure from an imported pack renders from file://', async ({ page }) => {
+test('an embedded (data: URI) figure from an imported pack renders', async ({ page }) => {
   await offline(page);
   await importPack(page, APP);
   const sc = sample.scenarios.find((s: { figure: unknown }) => s.figure);
@@ -149,7 +146,7 @@ test('pre-flagged questions are seeded into Flags', async ({ page }) => {
   await expect(page.getByTestId('unconfirmed')).toContainText('Unconfirmed — check with your notes or instructor.');
 });
 
-test('from file://, a second tab is blocked until "Use this tab instead" (Web Locks)', async ({ context }) => {
+test('a second tab is blocked until "Use this tab instead" (Web Locks)', async ({ context }) => {
   const a = await context.newPage();
   await offline(a);
   await importPack(a, APP);

@@ -112,8 +112,8 @@ See [`test/fixtures/sample-pack.json`](../test/fixtures/sample-pack.json) for a 
 ## Build
 
 Vite + React, built by `vite-plugin-singlefile` into one self-contained
-`dist/index.html` (fonts inlined, relative base). It works both from GitHub Pages
-and opened straight from disk. `public/` (the iOS storage spike page) is copied
+`dist/index.html` (fonts inlined, relative base), served from GitHub Pages. Opening it
+straight from disk (`file://`) was retired in step 3 and is no longer tested. `public/` (the iOS storage spike page) is copied
 into `dist/` as is.
 
 ## Tests
@@ -129,7 +129,7 @@ into `dist/` as is.
     - the reminder, with a fake clock;
     - the move from v1.4 `localStorage`;
     - the iOS storage spike page;
-  - against the built file over `file://` with the network blocked: import,
+  - the built app with every other host blocked (`e2e/app.spec.ts`): import,
     drill, mock exam, sync export, figures, pre-flags, and a 600-question
     performance run.
 - **Fixtures:**

@@ -6,7 +6,7 @@ import { makeSyncFile } from './syncFile';
 // Getting a file off the device: the Share sheet on touch devices (iPhone/iPad:
 // AirDrop, Files, Messages), a normal download everywhere else.
 
-/** Save a file to the Downloads folder; works from file:// with no server. */
+/** Save a file to the Downloads folder. */
 export function downloadFile(name: string, content: string, type = 'application/json'): void {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = document.createElement('a');

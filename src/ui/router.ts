@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// Tiny hash router: #/path?query. Hash URLs work from file:// with no server.
+// Tiny hash router: #/path?query. Hash URLs need no server-side routing (GitHub Pages).
 
 export interface Route {
   path: string;
