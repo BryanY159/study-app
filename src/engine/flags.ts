@@ -22,7 +22,9 @@ export function flagState(flag: Flag, packs: readonly Pack[]): FlagState {
   if (flag.itemType === 'card') {
     const c = pack ? cardsOf(pack).find((x) => x.id === flag.questionId) : undefined;
     if (!pack || !c) return 'missing';
-    // Cards have no fixedIn; a card pre-flag is settled once a newer pack no longer ships it as unconfirmed.
+    // Same rules as questions: a fix (flagged-fixed, fixedIn) newer than the flag resolves it.
+    if (c.status === 'flagged-fixed' && (c.fixedIn ?? pack.version) > flag.packVersion) return 'resolved';
+    // A card pre-flag is settled once a newer pack no longer ships it as unconfirmed.
     if (flag.source === 'preflag' && pack.version > flag.packVersion && c.status !== 'unconfirmed') return 'resolved';
     return 'open';
   }

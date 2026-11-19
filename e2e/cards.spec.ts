@@ -129,3 +129,20 @@ test('Home: the cards tile starts a session', async ({ page }) => {
   await tile.getByRole('link', { name: 'Start cards' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Flashcards' })).toBeVisible();
 });
+
+test('a flagged-fixed card is studied like a verified one: in the deck, no Unconfirmed chip', async ({ page }) => {
+  // In the Orrin sample pack one card is flagged-fixed and one is unconfirmed; ten cards in all.
+  await importPack(page, '/');
+  await page.goto('/#/cards');
+  await page.getByRole('radio', { name: /Cram/ }).check();
+  await expect(page.getByTestId('start-cards')).toContainText('10 cards');
+  await page.getByTestId('start-cards').click();
+  let unconfirmed = 0;
+  for (let i = 0; i < 10; i++) {
+    unconfirmed += await page.getByText('Unconfirmed', { exact: true }).count();
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: /^Got it/ }).click();
+  }
+  await expect(page.getByTestId('card-summary')).toBeVisible();
+  expect(unconfirmed).toBe(1); // only the genuinely unconfirmed card carries the chip
+});

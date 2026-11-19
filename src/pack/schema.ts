@@ -127,10 +127,13 @@ export const FlashcardSchema = z
     /** Questions this card helps with ("Review the related cards" after a wrong answer). */
     relatedQuestionIds: z.array(z.string()).default([]),
     sources: z.array(SourceSchema).min(1, 'needs at least one source'),
-    status: z.enum(['draft', 'verified', 'unconfirmed']),
+    status: z.enum(['draft', 'verified', 'flagged-fixed', 'unconfirmed']),
     preflag: PreflagSchema.optional(),
+    /** flagged-fixed only: the pack version that made the fix. Flags made on an older version show "Resolved". Set by merge. */
+    fixedIn: z.number().int().positive().optional(),
   })
   .superRefine((c, ctx) => {
+    if (c.fixedIn !== undefined && c.status !== 'flagged-fixed') ctx.addIssue({ code: 'custom', path: ['fixedIn'], message: 'fixedIn is only allowed on flagged-fixed cards' });
     if (c.status === 'unconfirmed' && !c.preflag) ctx.addIssue({ code: 'custom', path: ['preflag'], message: 'unconfirmed cards need a preflag {reason, note}' });
     if (c.preflag && c.status !== 'unconfirmed') ctx.addIssue({ code: 'custom', path: ['preflag'], message: 'preflag is only allowed on unconfirmed cards' });
     if (c.type === 'cloze') {

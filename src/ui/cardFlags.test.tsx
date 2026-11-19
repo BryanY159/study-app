@@ -54,6 +54,24 @@ describe('card flags in the engine', () => {
 describe('Flags screen with card flags', () => {
   afterEach(cleanup);
 
+  it('a flag made before a card was marked flagged-fixed shows "Resolved — re-check"', async () => {
+    // In the Orrin fixture c-alpha-0002 is flagged-fixed with fixedIn 1; this flag was made on version 0.
+    const old: Flag = { ...cardFlag, id: 'flag-old', questionId: 'c-alpha-0002', packVersion: 0, comment: 'Needs a clearer blank.' };
+    const store = new MemoryDataStore();
+    await store.write('flags', { ...emptyFlags(), flags: [old] });
+    window.location.hash = '#/flags';
+    render(
+      <AppProvider store={store} bundledPacks={[pack]} loadImported={async () => []} saveImported={async () => {}}>
+        <App />
+      </AppProvider>,
+    );
+    await screen.findByRole('heading', { level: 1, name: 'Flagged questions' });
+    expect(flagState(old, [pack])).toBe('resolved');
+    fireEvent.click(await screen.findByRole('tab', { name: /^Resolved/ }));
+    const item = (await screen.findAllByTestId('flag-item')).find((el) => el.textContent?.includes('Needs a clearer blank.'))!;
+    expect(item).toHaveTextContent('Resolved — re-check');
+  });
+
   it('lists card flags with the card front, filters questions / cards, and opens the card', async () => {
     const store = new MemoryDataStore();
     await store.write('flags', { ...emptyFlags(), flags: [cardFlag] });

@@ -128,3 +128,43 @@ describe('flagState with fixedIn (N-4)', () => {
     expect(flagState({ ...flag, packVersion: 4 }, [withFix(6, 5)])).toBe('resolved');
   });
 });
+
+describe('flagState for cards (flagged-fixed, like questions)', () => {
+  const cardPack = (version: number, patch: Record<string, unknown>) => ({
+    ...v1,
+    version,
+    flashcards: [
+      {
+        id: 'c-a-0001',
+        topicIds: ['a-t'],
+        type: 'term' as const,
+        front: 'Invented term',
+        back: 'Its invented meaning.',
+        image: null,
+        relatedQuestionIds: [],
+        sources: [{ file: 'x', locator: 'y' }],
+        status: 'verified' as const,
+        ...patch,
+      },
+    ],
+  });
+  const cardFlag: Flag = { ...flag, id: 'cf', itemType: 'card', questionId: 'c-a-0001', packVersion: 1 };
+
+  it('is open on a verified card, whatever the version', () => {
+    expect(flagState(cardFlag, [cardPack(2, {})])).toBe('open');
+  });
+
+  it('a flag made before fixedIn is "Resolved — re-check"', () => {
+    expect(flagState(cardFlag, [cardPack(2, { status: 'flagged-fixed', fixedIn: 2 })])).toBe('resolved');
+  });
+
+  it('a flag made on or after fixedIn stays open', () => {
+    expect(flagState({ ...cardFlag, packVersion: 2 }, [cardPack(2, { status: 'flagged-fixed', fixedIn: 2 })])).toBe('open');
+    expect(flagState({ ...cardFlag, packVersion: 3 }, [cardPack(3, { status: 'flagged-fixed', fixedIn: 2 })])).toBe('open');
+  });
+
+  it('without fixedIn the current pack version counts as the fix (as for questions)', () => {
+    expect(flagState(cardFlag, [cardPack(2, { status: 'flagged-fixed' })])).toBe('resolved');
+    expect(flagState(cardFlag, [cardPack(1, { status: 'flagged-fixed' })])).toBe('open');
+  });
+});

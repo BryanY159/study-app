@@ -745,7 +745,8 @@
           "locator": "slide 3"
         }
       ],
-      "status": "verified"
+      "status": "flagged-fixed",
+      "fixedIn": 1
     },
     {
       "id": "c-alpha-0003",

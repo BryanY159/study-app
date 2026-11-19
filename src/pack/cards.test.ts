@@ -87,3 +87,24 @@ describe('flashcards in a pack', () => {
     if (r.ok) expect(r.warnings.map((w) => w.message).join()).toMatch(/MB; over 15 MB it may be slow/);
   });
 });
+
+describe('flagged-fixed cards (v2.1.0)', () => {
+  it('a flagged-fixed card parses, with or without fixedIn', () => {
+    expect(errors(withCards(card({ status: 'flagged-fixed', fixedIn: 2 })))).toEqual([]);
+    expect(errors(withCards(card({ status: 'flagged-fixed' })))).toEqual([]);
+  });
+
+  it('fixedIn is only allowed on flagged-fixed cards, and must be a positive integer', () => {
+    expect(errors(withCards(card({ status: 'verified', fixedIn: 2 }))).join('\n')).toMatch(/fixedIn is only allowed on flagged-fixed cards/);
+    expect(errors(withCards(card({ status: 'flagged-fixed', fixedIn: 0 }))).length).toBeGreaterThan(0);
+    expect(errors(withCards(card({ status: 'flagged-fixed', fixedIn: 1.5 }))).length).toBeGreaterThan(0);
+  });
+
+  it('a pack with only the old statuses still loads', () => {
+    for (const status of ['draft', 'verified']) expect(errors(withCards(card({ status })))).toEqual([]);
+  });
+
+  it('an unconfirmed card still needs its preflag', () => {
+    expect(errors(withCards(card({ status: 'unconfirmed' }))).join('\n')).toMatch(/need a preflag/);
+  });
+});
