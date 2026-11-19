@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { cardsOf, PackSchema, type Pack } from './schema';
+import { cardsOf, groupsOf, PackSchema, type Pack } from './schema';
 
 /** A card image may be at most this big once encoded (data: URI length). */
 export const MAX_CARD_IMAGE_BYTES = 400 * 1024;
@@ -31,6 +31,24 @@ export function checkPack(pack: Pack): CheckResult {
     for (const t of m.topics) {
       if (topicModule.has(t.id)) errors.push({ path: `topics.${t.id}`, message: `duplicate topic id "${t.id}"` });
       topicModule.set(t.id, m.id);
+    }
+  }
+
+  // Groups: unique ids, known modules, each module in at most one group.
+  const groupIds = new Set<string>();
+  const groupOfModule = new Map<string, string>();
+  for (const g of groupsOf(pack)) {
+    const at = `groups.${g.id}`;
+    if (groupIds.has(g.id)) errors.push({ path: at, message: `duplicate group id "${g.id}"` });
+    groupIds.add(g.id);
+    const seen = new Set<string>();
+    for (const mid of g.moduleIds) {
+      if (!moduleIds.has(mid)) errors.push({ path: `${at}.moduleIds`, message: `unknown module "${mid}"` });
+      if (seen.has(mid)) errors.push({ path: `${at}.moduleIds`, message: `module "${mid}" is listed twice` });
+      seen.add(mid);
+      const other = groupOfModule.get(mid);
+      if (other !== undefined && other !== g.id) errors.push({ path: `${at}.moduleIds`, message: `module "${mid}" is already in group "${other}" (a module can be in at most one group)` });
+      else groupOfModule.set(mid, g.id);
     }
   }
 

@@ -109,3 +109,19 @@ describe('progress', () => {
     ]);
   });
 });
+
+describe('indexPack groups', () => {
+  it('groupOf finds a grouped module and returns undefined for an ungrouped one', () => {
+    const pack = makePack({ alpha: 2, beta: 2 }) as any;
+    pack.groups = [{ id: 'g1', name: 'G1', moduleIds: ['alpha'] }];
+    const ix = indexPack(pack);
+    expect(ix.groupOf('alpha')?.id).toBe('g1');
+    expect(ix.groupOf('beta')).toBeUndefined();
+    expect(ix.group.size).toBe(1);
+  });
+  it('a pack without groups has an empty group map', () => {
+    const pack = makePack({ alpha: 2, beta: 2 }) as any;
+    delete pack.groups;
+    expect(indexPack(pack).group.size).toBe(0);
+  });
+});

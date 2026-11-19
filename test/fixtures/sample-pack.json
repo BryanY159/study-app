@@ -58,6 +58,23 @@
       ]
     }
   ],
+  "groups": [
+    {
+      "id": "first-season",
+      "name": "First season",
+      "moduleIds": [
+        "alpha",
+        "beta"
+      ]
+    },
+    {
+      "id": "second-season",
+      "name": "Second season",
+      "moduleIds": [
+        "gamma"
+      ]
+    }
+  ],
   "scenarios": [
     {
       "id": "sc-gamma-0001",

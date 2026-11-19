@@ -149,10 +149,27 @@ export const FlashcardSchema = z
     }
   });
 
+/** A named set of modules (e.g. one exam's worth). Optional in a pack; each module is in at most one group. */
+export const GroupSchema = z.object({
+  id: slug,
+  name: nonEmpty,
+  moduleIds: z.array(slug).min(1),
+});
+
+/** One part of a mock exam: draws exactly `count` questions from the groups or modules it names (one of the two lists). */
+export const ExamSectionSchema = z.object({
+  name: nonEmpty,
+  groupIds: z.array(slug).min(1).optional(),
+  moduleIds: z.array(slug).min(1).optional(),
+  count: z.number().int().positive(),
+});
+
 export const ExamBlueprintSchema = z.object({
   questionCount: z.number().int().positive(),
   timeLimitMinutes: z.number().int().positive(),
   minModuleShare: z.number().min(0).max(1),
+  /** Optional: when present, the mock draws each section's count and minModuleShare is not used. */
+  sections: z.array(ExamSectionSchema).min(1).optional(),
 });
 
 export const PackSchema = z.object({
@@ -162,6 +179,8 @@ export const PackSchema = z.object({
   examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be YYYY-MM-DD').optional(),
   examBlueprint: ExamBlueprintSchema,
   modules: z.array(ModuleSchema).min(1),
+  /** Optional: packs without groups behave as before. Read it with groupsOf(pack). */
+  groups: z.array(GroupSchema).optional(),
   scenarios: z.array(ScenarioSchema),
   questions: z.array(QuestionSchema),
   /** Optional: packs without flashcards still load. Read it with cardsOf(pack). */
@@ -177,10 +196,15 @@ export type Source = z.infer<typeof SourceSchema>;
 export type Question = z.infer<typeof QuestionSchema>;
 export type ExamBlueprint = z.infer<typeof ExamBlueprintSchema>;
 export type Pack = z.infer<typeof PackSchema>;
-export type Preflag = z.infer<typeof PreflagSchema>;
+export type Group = z.infer<typeof GroupSchema>;
+export type ExamSection = z.infer<typeof ExamSectionSchema>;
+export type Preflag =z.infer<typeof PreflagSchema>;
 export type Flashcard = z.infer<typeof FlashcardSchema>;
 export type CardType = (typeof CARD_TYPES)[number];
 export type CardImage = z.infer<typeof CardImageSchema>;
 
 /** The pack's flashcards ([] when it has none). */
 export const cardsOf = (pack: { flashcards?: Flashcard[] }): Flashcard[] => pack.flashcards ?? [];
+
+/** The pack's module groups ([] when it has none). */
+export const groupsOf = (pack: { groups?: Group[] }): Group[] => pack.groups ?? [];

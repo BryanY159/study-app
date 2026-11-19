@@ -62,3 +62,56 @@ describe('formatIssues', () => {
     expect(text).toMatch(/and 2 more/);
   });
 });
+
+describe('groups', () => {
+  it('the sample pack has two groups covering every module', () => {
+    const r = parsePack(clone());
+    if (!r.ok) throw new Error(formatIssues(r.errors));
+    expect(r.pack.groups?.map((g) => g.id)).toEqual(['first-season', 'second-season']);
+  });
+
+  it('a pack without groups parses to the same thing as before', () => {
+    const p = clone();
+    delete p.groups;
+    const r = parsePack(p);
+    expect(r.ok && r.warnings).toEqual([]);
+    expect(r.ok && r.pack.groups).toBeUndefined();
+  });
+
+  it('an empty groups list is fine', () => {
+    const p = clone();
+    p.groups = [];
+    expect(parsePack(p).ok).toBe(true);
+  });
+
+  const errorsOf = (mutate: (p: any) => void) => {
+    const p = clone();
+    mutate(p);
+    const r = parsePack(p);
+    return r.ok ? [] : r.errors.map((e) => `${e.path}: ${e.message}`);
+  };
+
+  it('rejects a module in two groups', () => {
+    const e = errorsOf((p) => p.groups[1].moduleIds.push('alpha'));
+    expect(e.join('\n')).toMatch(/groups\.second-season.*"alpha" is already in group "first-season"/);
+  });
+
+  it('rejects an unknown module id', () => {
+    expect(errorsOf((p) => p.groups[0].moduleIds.push('nope')).join('\n')).toMatch(/unknown module "nope"/);
+  });
+
+  it('rejects a duplicate group id and a module listed twice', () => {
+    expect(errorsOf((p) => (p.groups[1].id = 'first-season')).join('\n')).toMatch(/duplicate group id/);
+    expect(errorsOf((p) => p.groups[0].moduleIds.push('alpha')).join('\n')).toMatch(/listed twice/);
+  });
+
+  it('rejects an empty moduleIds list', () => {
+    expect(errorsOf((p) => (p.groups[0].moduleIds = [])).length).toBeGreaterThan(0);
+  });
+
+  it('modules outside every group are allowed', () => {
+    const p = clone();
+    p.groups = [p.groups[0]];
+    expect(parsePack(p).ok).toBe(true);
+  });
+});
