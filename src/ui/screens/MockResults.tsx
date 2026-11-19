@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Question } from '../../pack/schema';
 import { pct } from '../../engine/scoring';
+import { scoreSections, sectionTopicIds, weakestSectionIndex } from '../../engine/sections';
 import { useApp } from '../../state/AppProvider';
 import { KeyIdea, OptionFeedback, QuestionMeta, Stem } from '../components/QuestionView';
 import { useFlag } from '../components/useFlag';
@@ -27,6 +28,13 @@ export function MockResults({ sessionId }: { sessionId: string }) {
   const correct = rows.filter((r) => r.a?.correct).length;
   const total = rows.length;
   const flaggedIds = new Set(flags.flags.map((f) => f.questionId));
+
+  // Packs with exam sections: a score per section (saved with the session; older sessions are scored from the pack).
+  const packSections = ix.pack.examBlueprint.sections;
+  const sectionScores = packSections
+    ? (session.sectionScores ?? scoreSections(ix, packSections, rows.map((r) => ({ questionId: r.q.id, correct: !!r.a?.correct }))))
+    : null;
+  const weakestSection = sectionScores ? weakestSectionIndex(sectionScores) : -1;
 
   const byModule = ix.pack.modules
     .map((m) => {
@@ -68,6 +76,27 @@ export function MockResults({ sessionId }: { sessionId: string }) {
             <span> / {total}</span>
           </div>
           <div style={{ fontSize: 22, fontWeight: 600 }}>{pct({ correct, total })}%</div>
+          {sectionScores && (
+            <div className="stack" data-testid="section-scores" style={{ gap: 4 }}>
+              {sectionScores.map((sc, i) => {
+                const sec = packSections?.find((x) => x.name === sc.name);
+                const topics = sec ? sectionTopicIds(ix, sec) : [];
+                return (
+                  <div key={sc.name} className={`section-row${i === weakestSection ? ' weakest' : ''}`} data-testid="section-row">
+                    <span>
+                      <strong>{sc.name}</strong>: {sc.correct} / {sc.total}, {pct(sc)}%
+                      {i === weakestSection && <span className="chip warn" style={{ marginLeft: 8 }}>Weakest</span>}
+                    </span>
+                    {topics.length > 0 && (
+                      <a className="btn small" href={`#/drill?topics=${topics.join(',')}`} data-testid="drill-section">
+                        Drill this section
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="muted small">
             {tabCounts.marked} question{tabCounts.marked === 1 ? ' was' : 's were'} marked for review · {tabCounts.flagged} flagged
           </div>

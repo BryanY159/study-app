@@ -1,6 +1,7 @@
 import type { ExamBlueprint, ExamSection, Question } from '../pack/schema';
 import { toUnits, type PackIndex } from './packIndex';
 import { shuffle, type Rand } from './rng';
+import { sectionModuleIds } from './sections';
 
 export interface MockAssembly {
   questions: Question[];
@@ -77,8 +78,7 @@ function assembleSections(ix: PackIndex, sections: readonly ExamSection[], rand:
   let total = 0;
   let wanted = 0;
   for (const sec of sections) {
-    const mods = new Set<string>(sec.moduleIds ?? []);
-    for (const gid of sec.groupIds ?? []) for (const m of ix.group.get(gid)?.moduleIds ?? []) mods.add(m);
+    const mods = new Set(sectionModuleIds(ix, sec));
     const units = shuffle(toUnits(pool.filter((q) => mods.has(ix.moduleOf(q)))), rand);
     const picked = pickUnits(units, sec.count);
     chosen.push(...picked);

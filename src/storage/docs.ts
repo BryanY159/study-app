@@ -33,6 +33,8 @@ export const SessionSchema = z.object({
   /** Mock only: questions marked for review, and the time limit used (null = untimed). */
   marked: z.array(z.string()).default([]),
   timeLimitMinutes: z.number().nullable().default(null),
+  /** Mock only, packs with exam sections: the score in each section, saved when the mock is submitted. Absent on older sessions. */
+  sectionScores: z.array(z.object({ name: z.string(), correct: z.number().int().nonnegative(), total: z.number().int().nonnegative() })).optional(),
 });
 
 export const ActiveMockSchema = z.object({

@@ -4,6 +4,7 @@ import { useApp } from '../../state/AppProvider';
 import { CardsTile, useCardStats } from '../components/CardsTile';
 import { BackupReminder } from '../components/SyncExport';
 import { SetAsideWarning } from '../components/SetAsideWarning';
+import { SectionScoresLine } from '../components/SectionScoresLine';
 import { TopicTree } from '../components/TopicTree';
 import { buildTree, topicPath } from '../topicTree';
 import { useBreakpoint } from '../useBreakpoint';
@@ -201,6 +202,7 @@ function RecentSessions({ sessions }: { sessions: ReturnType<typeof recentSessio
             <span className="small muted">
               {formatWhen(session.startedAt)} · {score.total} question{score.total === 1 ? '' : 's'}
             </span>
+            <SectionScoresLine session={session} />
           </div>
           <span style={{ fontWeight: 600 }}>
             {score.correct}/{score.total}

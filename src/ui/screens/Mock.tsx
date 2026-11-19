@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { assembleMock } from '../../engine/mock';
 import { mulberry32, randomSeed } from '../../engine/rng';
 import { isCorrect } from '../../engine/scoring';
+import { scoreSections } from '../../engine/sections';
 import type { PackIndex } from '../../engine/packIndex';
 import type { ActiveMock, Attempt, ProgressDoc } from '../../storage/docs';
 import { useApp } from '../../state/AppProvider';
@@ -37,10 +38,13 @@ export function submitMock(p: ProgressDoc, ix: PackIndex, now = new Date()): Pro
     const chosen = a ? [a] : [];
     return [{ id: `${m.sessionId}|${id}`, questionId: id, packId: m.packId, sessionId: m.sessionId, mode: 'mock' as const, chosen, correct: isCorrect(q, chosen), at: now.toISOString(), ms: each }];
   });
+  // Packs with exam sections also keep each section's score with the session (history, comparing mocks).
+  const sections = ix.pack.examBlueprint.sections;
+  const sectionScores = sections ? scoreSections(ix, sections, attempts.map((a) => ({ questionId: a.questionId, correct: a.correct }))) : undefined;
   return {
     ...p,
     attempts: [...p.attempts, ...attempts],
-    sessions: p.sessions.map((s) => (s.id === m.sessionId ? { ...s, endedAt: now.toISOString(), marked: m.marked } : s)),
+    sessions: p.sessions.map((s) => (s.id === m.sessionId ? { ...s, endedAt: now.toISOString(), marked: m.marked, ...(sectionScores ? { sectionScores } : {}) } : s)),
     activeMock: null,
   };
 }

@@ -88,6 +88,18 @@ See [`test/fixtures/sample-pack.json`](../test/fixtures/sample-pack.json) for a 
   Cards never change question scores or mock assembly; a test guards this.
 - **Flags v2:** flags carry `itemType` (`question` or `card`). Unconfirmed cards get pre-flags.
 
+## Mock results by section
+
+When the pack has `examBlueprint.sections`, the mock results screen shows a score per
+section under the overall score ("Exam 2: 7 / 11, 64%"), tints and labels the weakest one, and
+gives each section a "Drill this section" link (`#/drill?topics=…`, every topic of the
+section's modules). The scores come from `src/engine/sections.ts` (`scoreSections`,
+`weakestSectionIndex`). They are saved on the session as an optional `sectionScores`
+(`[{ name, correct, total }]`, same document version, so older data loads unchanged), and
+show under the session in Home's recent sessions and in History & data. Sessions without saved
+scores (taken before this existed) are scored from the pack when opened. Packs without
+sections show the results screen as before. No `@study/pack` export changed in v2.2.0.
+
 ## Topic tree
 
 Drill setup, card deck setup and Home show topics as a collapsible **group → module → topic**

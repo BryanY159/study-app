@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { sessionScore } from '../../engine/progress';
+import { SectionScoresLine } from '../components/SectionScoresLine';
 import { cleanLabel, MAX_LABEL } from '../../storage/syncFile';
 import { useApp } from '../../state/AppProvider';
 import { ExportButton } from '../components/SyncExport';
@@ -114,6 +115,7 @@ export function DataPage() {
                 {new Date(s.startedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                 {!s.endedAt && ' · not finished'}
               </div>
+              <SectionScoresLine session={s} />
             </div>
             <span style={{ fontWeight: 600 }}>
               {score.correct}/{score.total}

@@ -359,3 +359,7 @@ html { -webkit-text-size-adjust: 100%; }
   .banner.reminder { padding: 10px 12px; font-size: 13px; gap: 8px; }
   .banner.reminder .btn { min-height: 44px; }
 }
+
+/* Mock results: a score per exam section; the weakest one is tinted (and also labelled, not colour alone). */
+.section-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 6px 10px; border-radius: 10px; }
+.section-row.weakest { background: var(--warn-soft); border: 1px solid var(--warn-line); color: var(--warn-ink); }
