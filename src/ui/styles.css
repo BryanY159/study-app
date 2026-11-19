@@ -159,6 +159,27 @@ legend { font-size: 13px; color: var(--muted); padding: 0 6px; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 .check .n { margin-left: auto; font-size: 13px; color: var(--muted); }
 .topic-list { padding-left: 28px; display: flex; flex-direction: column; }
+
+/* Collapsible topic tree: group > module > topic. Rows and buttons are at least 44px (touch). */
+.ttree { display: flex; flex-direction: column; gap: 4px; }
+.ttree-tools { display: flex; justify-content: flex-end; }
+.linkish { min-height: 44px; padding: 0 8px; background: none; border: 0; color: var(--accent); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.ttree-list { list-style: none; margin: 0; padding: 0; }
+.ttree-children { margin-left: 12px; padding-left: 8px; border-left: 1px solid var(--divider); }
+.tt-row { display: flex; align-items: center; gap: 4px; min-height: 44px; min-width: 0; }
+.tt-chev { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; padding: 0; background: none; border: 0; color: var(--text-2); font: inherit; cursor: pointer; border-radius: 10px; }
+.tt-chev-named { flex: 1 1 auto; justify-content: flex-start; text-align: left; padding-right: 8px; }
+.tt-chev-named .tt-label { font-weight: 600; color: var(--text); }
+.tt-arrow { flex: none; transition: transform 0.12s; }
+.tt-arrow.open { transform: rotate(90deg); }
+.tt-spacer { flex: none; width: 44px; }
+.tt-label { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; min-height: 44px; cursor: pointer; overflow-wrap: anywhere; }
+.tt-label input { flex: none; width: 18px; height: 18px; accent-color: var(--accent); }
+.tt-group > .tt-row .tt-label, .tt-module > .tt-row .tt-label { font-weight: 600; }
+.tt-meta { flex: none; margin-left: auto; padding-left: 8px; font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 639px) {
+  .ttree-children { margin-left: 8px; padding-left: 4px; }
+}
 textarea { width: 100%; border: 1px solid var(--border-strong); border-radius: 10px; padding: 10px 12px; resize: vertical; }
 
 .banner { padding: 12px 16px; border-radius: 10px; font-size: 14px; }
