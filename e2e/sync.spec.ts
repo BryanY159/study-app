@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import path from 'node:path';
-import { importPack, waitForSaved } from './flows';
+import { expandTree, importPack, waitForSaved } from './flows';
 
 // Two browser contexts = two devices, each with its own IndexedDB.
 // Device A answers and exports; device B imports with Merge, again (no change), then Replace.
@@ -19,6 +19,7 @@ async function device(browser: Browser) {
 /** Drill the first n questions of one module, answering "a". */
 async function answer(page: Page, module: string, n: number) {
   await page.goto('/#/drill');
+  await expandTree(page);
   for (const name of ['Glowroots', 'Skyvines', 'Ember moss']) {
     const box = page.getByRole('checkbox', { name, exact: true });
     if ((name === module) !== (await box.isChecked())) await box.click();

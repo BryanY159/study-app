@@ -3,7 +3,10 @@ import { mulberry32, randomSeed } from '../../engine/rng';
 import { buildDrill, drillPool, type DrillFilter } from '../../engine/select';
 import type { PackIndex } from '../../engine/packIndex';
 import { useApp } from '../../state/AppProvider';
+import { TopicTree } from '../components/TopicTree';
 import { navigate, type Route } from '../router';
+import { ancestorsOf, buildTree, type TreeNode } from '../topicTree';
+import { useExpanded } from '../useExpanded';
 import { Welcome } from './Welcome';
 
 const COUNTS = [10, 20, 40] as const;
@@ -28,6 +31,9 @@ export function DrillSetup({ route }: { route: Route }) {
   const [filter, setFilter] = useState<DrillFilter>(() => (route.query.get('filter') as DrillFilter) || 'all');
   const [count, setCount] = useState<number | 'all'>(20);
   const hideFlagged = progress.settings.hideFlagged;
+  const tree = useMemo(() => (ix ? buildTree(ix) : []), [ix]);
+  const presetOpen = useMemo(() => (preset?.length ? ancestorsOf(tree, new Set(preset)) : []), [tree, preset?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const expanded = useExpanded('drill', ix?.pack.packId ?? '', presetOpen);
 
   const attempts = progress.attempts;
   const excludeIds = useMemo(
@@ -39,13 +45,12 @@ export function DrillSetup({ route }: { route: Route }) {
 
   if (!ix) return <Welcome />;
 
-  const perTopic = (id: string) => poolFor(filter, new Set([id])).length;
-  const toggle = (ids: string[], on: boolean) =>
-    setTopics((prev) => {
-      const next = new Set(prev);
-      for (const id of ids) on ? next.add(id) : next.delete(id);
-      return next;
-    });
+  // Questions available under a group, module or topic for the current filter (a question counts once).
+  const allPool = poolFor(filter, new Set(ix.topic.keys()));
+  const countFor = (node: TreeNode) => {
+    const ids = new Set(node.topicIds);
+    return allPool.filter((q) => q.topicIds.some((t) => ids.has(t))).length;
+  };
 
   const start = () => {
     const qs = buildDrill(ix, attempts, { topicIds: topics, filter, count, excludeIds }, mulberry32(randomSeed()));
@@ -67,36 +72,13 @@ export function DrillSetup({ route }: { route: Route }) {
               Choose topics. You'll see the answer and explanation after each question.
             </p>
           </div>
-          {ix.pack.modules.map((m) => {
-            const ids = m.topics.map((t) => t.id);
-            const all = ids.every((id) => topics.has(id));
-            const some = ids.some((id) => topics.has(id));
-            return (
-              <fieldset key={m.id}>
-                <legend>{m.topics.length} topics</legend>
-                <label className="check" style={{ fontWeight: 600 }}>
-                  <input
-                    type="checkbox"
-                    checked={all}
-                    ref={(el) => {
-                      if (el) el.indeterminate = some && !all;
-                    }}
-                    onChange={(e) => toggle(ids, e.target.checked)}
-                  />
-                  {m.name}
-                </label>
-                <div className="topic-list">
-                  {m.topics.map((t) => (
-                    <label key={t.id} className="check">
-                      <input type="checkbox" checked={topics.has(t.id)} onChange={(e) => toggle([t.id], e.target.checked)} />
-                      <span>{t.name}</span>
-                      <span className="n">{perTopic(t.id)}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            );
-          })}
+          <TopicTree
+            label="Topics"
+            nodes={tree}
+            expanded={expanded}
+            selection={{ selected: topics, onChange: setTopics }}
+            meta={(n) => <span aria-label={`${countFor(n)} questions`}>{countFor(n)}</span>}
+          />
         </section>
 
         <aside className="card stack-lg" style={{ position: 'sticky', top: 16 }}>

@@ -57,7 +57,8 @@ describe('deck setup', () => {
     });
     renderAt('#/cards', store);
     await screen.findByRole('heading', { level: 1, name: 'Flashcards' });
-    const anatomy = screen.getAllByTestId('card-topic').find((el) => el.textContent?.includes('Glowroot anatomy'))!;
+    fireEvent.click(screen.getByTestId('tree-expand-all'));
+    const anatomy = screen.getAllByTestId('tree-topic').find((el) => el.textContent?.includes('Glowroot anatomy'))!;
     expect(anatomy.textContent).toMatch(/1 due · 1 new · 1\/3 learned/);
     expect(screen.getByTestId('start-cards')).toHaveTextContent('Start · 1 due + 8 new');
     fireEvent.click(screen.getByRole('radio', { name: /Due only/ }));

@@ -11,10 +11,17 @@ export async function importPack(page: Page, url: string, file = SAMPLE_PACK, qu
   await expect(page.getByTestId('data-message')).toContainText(`${questions} questions`);
 }
 
+/** Open every branch of the topic tree (drill and card setup start collapsed). */
+export async function expandTree(page: Page) {
+  const link = page.getByTestId('tree-expand-all');
+  if ((await link.textContent())?.includes('Expand all')) await link.click();
+}
+
 /** FR-2 happy path: pick one topic, answer 3 questions by keyboard, end, see it on the dashboard. */
 export async function drillFlow(page: Page, url: string) {
   await importPack(page, url);
   await page.goto(url + '#/drill');
+  await expandTree(page);
   // Everything starts selected: clear each module, then pick one topic.
   for (const name of ['Glowroots', 'Skyvines', 'Ember moss']) {
     const box = page.getByRole('checkbox', { name, exact: true });

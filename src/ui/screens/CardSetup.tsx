@@ -5,7 +5,10 @@ import { CARD_TYPES, cardsOf, type CardType } from '../../pack/schema';
 import { packReviews, schedulerStates } from '../../storage/cards';
 import { useApp } from '../../state/AppProvider';
 import { CARD_TYPE_LABEL } from '../components/CardFace';
+import { TopicTree } from '../components/TopicTree';
 import { navigate, type Route } from '../router';
+import { ancestorsOf, buildTree, type TreeNode } from '../topicTree';
+import { useExpanded } from '../useExpanded';
 import { Welcome } from './Welcome';
 
 const MODES: { id: QueueMode; label: string; help: string }[] = [
@@ -24,6 +27,9 @@ export function CardSetup({ route }: { route: Route }) {
   const [topics, setTopics] = useState<Set<string>>(() => new Set(presetTopics?.length ? presetTopics : topicsWithCards));
   const [mode, setMode] = useState<QueueMode>(presetIds ? 'cram' : 'due-new');
   const [types, setTypes] = useState<Set<CardType>>(() => new Set(CARD_TYPES));
+  const tree = useMemo(() => (ix ? buildTree(ix, (t) => topicsWithCards.has(t)) : []), [ix, topicsWithCards]);
+  const presetOpen = useMemo(() => (presetTopics?.length ? ancestorsOf(tree, new Set(presetTopics)) : []), [tree, presetTopics?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const expanded = useExpanded('cards', ix?.pack.packId ?? '', presetOpen);
 
   if (!ix) return <Welcome />;
   const packId = ix.pack.packId;
@@ -59,12 +65,10 @@ export function CardSetup({ route }: { route: Route }) {
             ? "Nothing is due and you've reached today's new-card limit. Use Cram to practise anyway, or raise the limit on the History & data page."
             : 'Nothing is due today. Use Cram to practise anyway.';
 
-  const toggleTopics = (tIds: string[], on: boolean) =>
-    setTopics((prev) => {
-      const next = new Set(prev);
-      for (const id of tIds) on ? next.add(id) : next.delete(id);
-      return next;
-    });
+  const countsFor = (node: TreeNode) => {
+    const ids = new Set(node.topicIds);
+    return deckCounts(deck.filter((c) => c.topicIds.some((t) => ids.has(t))).map((c) => c.id), states, today);
+  };
   const toggleType = (t: CardType) =>
     setTypes((prev) => {
       const next = new Set(prev);
@@ -88,47 +92,22 @@ export function CardSetup({ route }: { route: Route }) {
               {presetSet ? `Reviewing ${selected.length} card${selected.length === 1 ? '' : 's'} linked to a question.` : 'Choose topics. Each shows cards due today, new cards, and cards learned.'}
             </p>
           </div>
-          {!presetSet &&
-            ix.pack.modules.map((m) => {
-              const mTopics = m.topics.filter((t) => topicsWithCards.has(t.id));
-              if (!mTopics.length) return null;
-              const tIds = mTopics.map((t) => t.id);
-              const all = tIds.every((id) => topics.has(id));
-              const some = tIds.some((id) => topics.has(id));
-              const mc = deckCounts(deck.filter((c) => c.topicIds.some((t) => tIds.includes(t))).map((c) => c.id), states, today);
-              return (
-                <fieldset key={m.id}>
-                  <legend>
-                    {mc.due} due · {mc.new} new
-                  </legend>
-                  <label className="check" style={{ fontWeight: 600 }}>
-                    <input
-                      type="checkbox"
-                      checked={all}
-                      ref={(el) => {
-                        if (el) el.indeterminate = some && !all;
-                      }}
-                      onChange={(e) => toggleTopics(tIds, e.target.checked)}
-                    />
-                    {m.name}
-                  </label>
-                  <div className="topic-list">
-                    {mTopics.map((t) => {
-                      const tc = deckCounts(deck.filter((c) => c.topicIds.includes(t.id)).map((c) => c.id), states, today);
-                      return (
-                        <label key={t.id} className="check" data-testid="card-topic">
-                          <input type="checkbox" checked={topics.has(t.id)} onChange={(e) => toggleTopics([t.id], e.target.checked)} />
-                          <span>{t.name}</span>
-                          <span className="n" aria-label={`${tc.due} due, ${tc.new} new, ${tc.learned} learned`}>
-                            <span className={tc.due ? 'due-n' : ''}>{tc.due} due</span> · {tc.new} new · {tc.learned}/{tc.total} learned
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-              );
-            })}
+          {!presetSet && (
+            <TopicTree
+              label="Topics"
+              nodes={tree}
+              expanded={expanded}
+              selection={{ selected: topics, onChange: setTopics }}
+              meta={(n) => {
+                const c = countsFor(n);
+                return (
+                  <span aria-label={`${c.due} due, ${c.new} new, ${c.learned} learned`}>
+                    <span className={c.due ? 'due-n' : ''}>{c.due} due</span> · {c.new} new{n.kind === 'topic' && ` · ${c.learned}/${c.total} learned`}
+                  </span>
+                );
+              }}
+            />
+          )}
         </section>
 
         <aside className="card stack-lg" style={{ position: 'sticky', top: 16 }}>
