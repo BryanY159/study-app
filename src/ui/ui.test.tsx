@@ -187,7 +187,7 @@ describe('saving on this device (no data folder)', () => {
         <App />
       </AppProvider>,
     );
-    expect((await screen.findByTestId('newer-version')).textContent).toMatch(/newer version of this app/);
+    expect((await screen.findByTestId('newer-version')).textContent).toBe('This device’s data was saved by a newer version of the app, so saving is paused to protect it. Reload to update the app.');
     fireEvent.click(await screen.findByRole('button', { name: /Start drill/ }));
     await screen.findByTestId('drill-position');
     fireEvent.click(screen.getByRole('button', { name: /End drill/ }));

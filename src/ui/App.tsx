@@ -41,7 +41,7 @@ export function App() {
       <UpdateBanner path={route.path} />
       {newerVersionData && (
         <div className="banner warn page-banner" role="alert" data-testid="newer-version">
-          Some of your data was saved by a newer version of this app, so this version leaves it untouched. Reload the page to get the latest version.
+          This device’s data was saved by a newer version of the app, so saving is paused to protect it. Reload to update the app.
         </div>
       )}
       {screen}
