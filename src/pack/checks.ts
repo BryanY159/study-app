@@ -52,6 +52,42 @@ export function checkPack(pack: Pack): CheckResult {
     }
   }
 
+  // Exam sections: every id resolves, one of groupIds/moduleIds, each module in one section, counts add up.
+  const sections = pack.examBlueprint.sections;
+  if (sections) {
+    const sectionOfModule = new Map<string, string>();
+    sections.forEach((sec, i) => {
+      const at = `examBlueprint.sections.${i}`;
+      if (!!sec.groupIds === !!sec.moduleIds) {
+        errors.push({ path: at, message: `section "${sec.name}" must name groupIds or moduleIds (exactly one of the two)` });
+      }
+      const mods = new Set<string>();
+      for (const gid of sec.groupIds ?? []) {
+        const g = groupsOf(pack).find((x) => x.id === gid);
+        if (!g) errors.push({ path: `${at}.groupIds`, message: `unknown group "${gid}"` });
+        else g.moduleIds.forEach((m) => mods.add(m));
+      }
+      for (const mid of sec.moduleIds ?? []) {
+        if (!moduleIds.has(mid)) errors.push({ path: `${at}.moduleIds`, message: `unknown module "${mid}"` });
+        else mods.add(mid);
+      }
+      for (const mid of mods) {
+        const other = sectionOfModule.get(mid);
+        if (other !== undefined && other !== sec.name) errors.push({ path: at, message: `module "${mid}" is in sections "${other}" and "${sec.name}" (a module can be in at most one section)` });
+        else sectionOfModule.set(mid, sec.name);
+      }
+    });
+    const total = sections.reduce((n, sec) => n + sec.count, 0);
+    if (total !== pack.examBlueprint.questionCount) {
+      errors.push({ path: 'examBlueprint.sections', message: `section counts add up to ${total}, but questionCount is ${pack.examBlueprint.questionCount}` });
+    }
+    const left = pack.modules.filter((m) => !sectionOfModule.has(m.id));
+    if (left.length) warnings.push({ path: 'examBlueprint.sections', message: `a mock never includes these modules (in no section): ${left.map((m) => m.id).join(', ')}` });
+    if (pack.examBlueprint.minModuleShare > 0) {
+      warnings.push({ path: 'examBlueprint.minModuleShare', message: 'minModuleShare is ignored when sections are set' });
+    }
+  }
+
   const scenarioIds = new Set<string>();
   for (const s of pack.scenarios) {
     if (scenarioIds.has(s.id)) errors.push({ path: `scenarios.${s.id}`, message: `duplicate scenario id "${s.id}"` });

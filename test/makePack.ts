@@ -8,9 +8,9 @@ import type { Attempt } from '../src/storage/docs';
  */
 export function makePack(
   perModule: Record<string, number>,
-  opts: { groups?: number; groupSize?: number; questionCount?: number } = {},
+  opts: { groups?: number; groupSize?: number; questionCount?: number; moduleGroups?: Pack['groups']; sections?: NonNullable<Pack['examBlueprint']['sections']> } = {},
 ): Pack {
-  const { groups = 0, groupSize = 3, questionCount = 33 } = opts;
+  const { groups = 0, groupSize = 3, questionCount = 33, moduleGroups, sections } = opts;
   const questions: Question[] = [];
   const scenarios: Pack['scenarios'] = [];
   for (const [m, n] of Object.entries(perModule)) {
@@ -26,8 +26,9 @@ export function makePack(
     version: 1,
     title: 'Test pack',
     examDate: '2026-11-18',
-    examBlueprint: { questionCount, timeLimitMinutes: 50, minModuleShare: 0.15 },
+    examBlueprint: { questionCount, timeLimitMinutes: 50, minModuleShare: sections ? 0 : 0.15, ...(sections ? { sections } : {}) },
     modules: Object.keys(perModule).map((m) => ({ id: m, name: m.toUpperCase(), topics: [{ id: `${m}-t`, name: `${m} topic`, source: '' }] })),
+    ...(moduleGroups ? { groups: moduleGroups } : {}),
     scenarios,
     questions,
   };

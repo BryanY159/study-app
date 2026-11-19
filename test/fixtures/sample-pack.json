@@ -6,7 +6,23 @@
   "examBlueprint": {
     "questionCount": 6,
     "timeLimitMinutes": 10,
-    "minModuleShare": 0.15
+    "minModuleShare": 0,
+    "sections": [
+      {
+        "name": "First season",
+        "groupIds": [
+          "first-season"
+        ],
+        "count": 3
+      },
+      {
+        "name": "Ember moss",
+        "moduleIds": [
+          "gamma"
+        ],
+        "count": 3
+      }
+    ]
   },
   "modules": [
     {

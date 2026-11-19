@@ -73,6 +73,7 @@ describe('groups', () => {
   it('a pack without groups parses to the same thing as before', () => {
     const p = clone();
     delete p.groups;
+    p.examBlueprint.sections = [{ name: 'All', moduleIds: ['alpha', 'beta', 'gamma'], count: 6 }]; // sections that don't use groups
     const r = parsePack(p);
     expect(r.ok && r.warnings).toEqual([]);
     expect(r.ok && r.pack.groups).toBeUndefined();
@@ -81,6 +82,7 @@ describe('groups', () => {
   it('an empty groups list is fine', () => {
     const p = clone();
     p.groups = [];
+    p.examBlueprint.sections = [{ name: 'All', moduleIds: ['alpha', 'beta', 'gamma'], count: 6 }];
     expect(parsePack(p).ok).toBe(true);
   });
 
@@ -113,5 +115,62 @@ describe('groups', () => {
     const p = clone();
     p.groups = [p.groups[0]];
     expect(parsePack(p).ok).toBe(true);
+  });
+});
+
+describe('exam sections', () => {
+  const run = (mutate: (p: any) => void) => {
+    const p = clone();
+    mutate(p);
+    return parsePack(p);
+  };
+  const errs = (mutate: (p: any) => void) => {
+    const r = run(mutate);
+    return r.ok ? '' : r.errors.map((e) => `${e.path}: ${e.message}`).join('\n');
+  };
+
+  it('the sample pack has sections that add up, and no warnings', () => {
+    const r = parsePack(clone());
+    if (!r.ok) throw new Error(formatIssues(r.errors));
+    expect(r.pack.examBlueprint.sections?.reduce((n, s) => n + s.count, 0)).toBe(r.pack.examBlueprint.questionCount);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('a blueprint without sections still parses (as v2.0.0)', () => {
+    const r = run((p) => delete p.examBlueprint.sections);
+    expect(r.ok && r.pack.examBlueprint.sections).toBeUndefined();
+  });
+
+  it('rejects counts that do not add up to questionCount', () => {
+    expect(errs((p) => (p.examBlueprint.sections[0].count = 1))).toMatch(/add up to 4, but questionCount is 6/);
+  });
+
+  it('rejects unknown group and module ids', () => {
+    expect(errs((p) => (p.examBlueprint.sections[0].groupIds = ['nope']))).toMatch(/unknown group "nope"/);
+    expect(errs((p) => (p.examBlueprint.sections[1].moduleIds = ['nope']))).toMatch(/unknown module "nope"/);
+  });
+
+  it('needs exactly one of groupIds and moduleIds', () => {
+    expect(errs((p) => (p.examBlueprint.sections[0].moduleIds = ['alpha']))).toMatch(/exactly one of the two/);
+    expect(errs((p) => delete p.examBlueprint.sections[0].groupIds)).toMatch(/exactly one of the two/);
+  });
+
+  it('rejects a module in two sections, even through a group', () => {
+    expect(errs((p) => (p.examBlueprint.sections[1].moduleIds = ['gamma', 'alpha']))).toMatch(/"alpha" is in sections/);
+  });
+
+  it('rejects a zero count and an empty list', () => {
+    expect(errs((p) => (p.examBlueprint.sections[0].count = 0)).length).toBeGreaterThan(0);
+    expect(errs((p) => (p.examBlueprint.sections = [])).length).toBeGreaterThan(0);
+  });
+
+  it('warns about modules in no section, and about minModuleShare with sections', () => {
+    const r = run((p) => {
+      p.examBlueprint.sections = [{ name: 'Only gamma', moduleIds: ['gamma'], count: 6 }];
+      p.examBlueprint.minModuleShare = 0.15;
+    });
+    const text = r.ok ? r.warnings.map((w) => w.message).join('\n') : '';
+    expect(text).toMatch(/in no section\): alpha, beta/);
+    expect(text).toMatch(/minModuleShare is ignored/);
   });
 });
