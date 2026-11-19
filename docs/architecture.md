@@ -23,13 +23,30 @@ A pack is one JSON file, validated by `PackSchema` and then by `checkPack`:
 - `packId` (kebab-case), `version` (integer, raised on each release of the pack),
   `title`, an optional `examDate`;
 - `examBlueprint`: `questionCount`, `timeLimitMinutes`, and `minModuleShare` (each
-  module's minimum share of a mock exam);
+  module's minimum share of a mock exam), plus optional `sections` (below);
 - `modules[]` → `topics[]`;
+- optional `groups[]`: `{ id, name, moduleIds }`, a named set of modules (for example one
+  exam's worth). Every module is in at most one group and every ID must exist. Modules
+  in no group are fine. A pack without groups behaves exactly as before;
 - `scenarios[]`: shared stems that several questions refer to by `scenarioId`;
 - `questions[]`: a stable `id` (`q-<prefix>-NNNN`), `topicIds`, `stem`, options
   `A, B, C…` (each with `correct` and an `explanation`), `level`
   (recall / application / clinical), `sources[]` (file + locator), and `status`
   (`draft`, `verified`, `flagged-fixed`, or `unconfirmed` with a `preflag` note).
+
+**Mock exam sections.** `examBlueprint.sections` is an optional list of
+`{ name, groupIds | moduleIds, count }` (exactly one of the two lists). Rules, all checked by `checkPack`:
+
+- the counts add up to `questionCount`;
+- every group or module ID exists, and a module is in at most one section;
+- modules in no section get a warning (a mock never includes them), and so does
+  `minModuleShare > 0`, which is ignored when sections are set.
+
+With sections, `assembleMock` draws exactly each section's count from its own modules (and
+groups' modules), keeping scenario sets whole. Unconfirmed and excluded questions are left
+out. It looks for a combination of whole units that adds up to the count; if no exact fit
+exists, the section is short and the mock shows the usual "Only N … available" warning, with
+nothing borrowed from other sections. Without sections the mock is unchanged.
 
 **Figures** (`figure: { file, caption }`) must be embedded as `data:` URIs. The app
 has no folder of figure files, so a figure given as a file path shows a "Figure not
@@ -47,7 +64,10 @@ See [`test/fixtures/sample-pack.json`](../test/fixtures/sample-pack.json) for a 
 - **In the pack:** an optional `flashcards` array. Each card has an `id` (`c-<prefix>-NNNN`),
   `topicIds`, a `type` (term, concept, cloze or diagram), `front`, `back`, an optional
   `image` (a `data:` URI with alt text and labels at x/y fractions), `label` (diagram
-  cards: which label is asked about), `relatedQuestionIds`, `sources` and `status`.
+  cards: which label is asked about), `relatedQuestionIds`, `sources` and `status`
+  (`draft`, `verified`, `flagged-fixed` with an optional `fixedIn`, or `unconfirmed` with a
+  `preflag`). `flagged-fixed` cards work like questions: a flag made before `fixedIn` shows
+  "Resolved — re-check", and the card is studied like a verified one.
   `checkPack` validates the cross-references, image size (≤ 400 KB) and the cloze /
   diagram rules.
 - **Scheduler** (`src/engine/leitner.ts`, pure):
@@ -67,6 +87,21 @@ See [`test/fixtures/sample-pack.json`](../test/fixtures/sample-pack.json) for a 
 
   Cards never change question scores or mock assembly; a test guards this.
 - **Flags v2:** flags carry `itemType` (`question` or `card`). Unconfirmed cards get pre-flags.
+
+## Topic tree
+
+Drill setup, card deck setup and Home show topics as a collapsible **group → module → topic**
+tree (`src/ui/components/TopicTree.tsx`, model in `src/ui/topicTree.ts`). A pack without groups
+shows module → topic; modules in no group follow the groups at the top level.
+
+- Every level is collapsed by default. Open branches are remembered **per device** in
+  `localStorage` (`study-ui:tree:<screen>:<packId>`, never synced or backed up); blocked storage
+  just means the tree forgets. A preselected topic (from a link) opens its path for that visit only.
+- Setup screens have cascading checkboxes (a branch is "partly selected" when only some topics
+  below it are ticked) and a count at every level. Home shows accuracy and "seen of available".
+  Weakest topics show their path ("First season › Glowroots").
+- Branches are native buttons (`aria-expanded`) and checkboxes, so Tab, Enter and Space work
+  with no extra key handling. Rows and buttons are at least 44 px tall.
 
 ## Storage
 
@@ -238,11 +273,16 @@ works by allowlist, so it never names real content:
   - `parsePack`, `checkPack`, `zodIssues`, `normalizeText`, `formatIssues`;
   - since v2.0.0, flashcards: `FlashcardSchema`, `CardImageSchema`,
     `CardLabelSchema`, `CARD_TYPES`, `CARD_ID_RE`, `CLOZE_BLANK`, `cardsOf`,
-    `MAX_CARD_IMAGE_BYTES`, `PACK_WARN_BYTES`.
+    `MAX_CARD_IMAGE_BYTES`, `PACK_WARN_BYTES`;
+  - since v2.1.0 (all optional, so older packs still load): `GroupSchema`, `ExamSectionSchema`,
+    `groupsOf`, the optional `groups` on a pack and `examBlueprint.sections`, the card status
+    `flagged-fixed` with `fixedIn`, and the checks for them.
 - `@study/pack/engine`:
   - `indexPack`, `toUnits`, `assembleMock`, `mulberry32`, `shuffle`, `randomSeed`;
   - since v2.0.0, the Leitner scheduler: `nextState`, `buildQueue`, `requeueAgain`,
-    `deckCounts`, `dueDateFor`, `localDay`, `addDays`, and the box constants.
+    `deckCounts`, `dueDateFor`, `localDay`, `addDays`, and the box constants;
+  - since v2.1.0, `PackIndex` has `group` and `groupOf`, and `assembleMock` follows
+    `examBlueprint.sections` when a pack has them (same results as before when it has none).
 - It ships TypeScript source (consumers use `tsx`/Vitest). Its only runtime
   dependency is `zod`, and there's deliberately no `prepare` script, so a git
   install doesn't pull in the app's dev tooling.

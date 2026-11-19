@@ -72,7 +72,7 @@ so content repos validate their packs with exactly the app's rules:
 
 ```jsonc
 // package.json in a content repo
-"dependencies": { "@study/pack": "github:BryanY159/study-app#v2.0.0" }
+"dependencies": { "@study/pack": "github:BryanY159/study-app#v2.1.0" }
 ```
 
 ```ts
