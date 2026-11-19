@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { attempt, makePack, makeQuestion } from '../../test/makePack';
 import { emptyProgress } from '../storage/docs';
 import { indexPack, toUnits } from './packIndex';
-import { missedIds, moduleStats, overallStats, recentSessions, topicStats } from './progress';
+import { groupStats, missedIds, moduleStats, nodeStats, overallStats, recentSessions, topicStats } from './progress';
 import { mulberry32, shuffle } from './rng';
 import { isCorrect } from './scoring';
 import { buildDrill, drillPool } from './select';
@@ -123,5 +123,32 @@ describe('indexPack groups', () => {
     const pack = makePack({ alpha: 2, beta: 2 }) as any;
     delete pack.groups;
     expect(indexPack(pack).group.size).toBe(0);
+  });
+});
+
+describe('nodeStats and groupStats', () => {
+  const pack = makePack(
+    { alpha: 4, beta: 4, gamma: 4 },
+    { moduleGroups: [{ id: 'g1', name: 'G1', moduleIds: ['alpha', 'beta'] }] },
+  );
+  const ix = indexPack(pack);
+  // alpha 0001 right then wrong (latest counts: wrong), alpha 0002 right, beta 0001 right.
+  const attempts = [attempt('q-alpha-0001', true), attempt('q-alpha-0001', false), attempt('q-alpha-0002', true), attempt('q-beta-0001', true)];
+
+  it('groupStats uses the latest attempt per question across the group', () => {
+    expect(groupStats(ix, attempts)).toEqual([{ groupId: 'g1', name: 'G1', seen: 3, available: 8, correct: 2, total: 3, pct: 67 }]);
+  });
+
+  it('a module through nodeStats matches moduleStats', () => {
+    const m = moduleStats(ix, attempts)[0];
+    expect(nodeStats(ix, attempts, ['alpha-t'])).toMatchObject({ seen: m.seen, available: m.available, correct: m.correct, total: m.total, pct: m.pct });
+  });
+
+  it('a pack without groups has no group stats', () => {
+    expect(groupStats(indexPack(makePack({ alpha: 2 })), attempts)).toEqual([]);
+  });
+
+  it('an unseen node is 0 of its available questions', () => {
+    expect(nodeStats(ix, attempts, ['gamma-t'])).toMatchObject({ seen: 0, available: 4, total: 0 });
   });
 });

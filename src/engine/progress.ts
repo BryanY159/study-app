@@ -103,3 +103,37 @@ export function weakestTopics<T extends { total: number }>(stats: readonly T[], 
   const attempted = stats.filter((t) => t.total > 0);
   return showAll ? attempted : attempted.slice(0, n);
 }
+
+export interface NodeStat extends Score {
+  /** Questions in the node answered at least once. */
+  seen: number;
+  /** Questions in the node. */
+  available: number;
+  pct: number;
+}
+
+/**
+ * Accuracy under any set of topics (a group, a module, one topic): the latest attempt of each
+ * seen question, the same rule as moduleStats. A question counts once, even under several topics.
+ */
+export function nodeStats(ix: PackIndex, attempts: readonly Attempt[], topicIds: Iterable<string>): NodeStat {
+  const ids = new Set(topicIds);
+  const latest = latestByQuestion(attempts);
+  const qs = ix.pack.questions.filter((q) => q.topicIds.some((t) => ids.has(t)));
+  const seen = qs.map((q) => latest.get(q.id)).filter((a): a is Attempt => !!a);
+  const s = { correct: seen.filter((a) => a.correct).length, total: seen.length };
+  return { seen: seen.length, available: qs.length, ...s, pct: pct(s) };
+}
+
+export interface GroupStat extends NodeStat {
+  groupId: string;
+  name: string;
+}
+
+/** Accuracy per module group (empty when the pack has no groups). Same rule as moduleStats. */
+export function groupStats(ix: PackIndex, attempts: readonly Attempt[]): GroupStat[] {
+  return [...ix.group.values()].map((g) => {
+    const topics = g.moduleIds.flatMap((mid) => ix.module.get(mid)?.topics.map((t) => t.id) ?? []);
+    return { groupId: g.id, name: g.name, ...nodeStats(ix, attempts, topics) };
+  });
+}

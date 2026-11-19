@@ -94,6 +94,7 @@ export function CardSetup({ route }: { route: Route }) {
           </div>
           {!presetSet && (
             <TopicTree
+              stackTopicMeta
               label="Topics"
               nodes={tree}
               expanded={expanded}

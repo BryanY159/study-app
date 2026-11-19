@@ -176,7 +176,11 @@ legend { font-size: 13px; color: var(--muted); padding: 0 6px; }
 .tt-label { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; min-height: 44px; cursor: pointer; overflow-wrap: anywhere; }
 .tt-label input { flex: none; width: 18px; height: 18px; accent-color: var(--accent); }
 .tt-group > .tt-row .tt-label, .tt-module > .tt-row .tt-label { font-weight: 600; }
-.tt-meta { flex: none; margin-left: auto; padding-left: 8px; font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.tt-meta { flex: 0 1 auto; max-width: 55%; margin-left: auto; padding-left: 8px; font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+/* Long counts (Home, card setup): a topic's counts sit on their own line under its name, so the name is not squeezed. */
+.ttree-stack .tt-topic > .tt-row { flex-wrap: wrap; }
+.ttree-stack .tt-topic > .tt-row .tt-meta { flex: 1 0 100%; max-width: none; margin: -10px 0 6px 0; padding: 0 0 0 48px; text-align: left; }
+.ttree-sel.ttree-stack .tt-topic > .tt-row .tt-meta { padding-left: 76px; }
 @media (max-width: 639px) {
   .ttree-children { margin-left: 8px; padding-left: 4px; }
 }

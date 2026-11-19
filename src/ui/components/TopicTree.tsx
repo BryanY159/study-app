@@ -14,6 +14,8 @@ interface Props {
   selection?: Selection;
   /** The right-hand side of a row: counts, accuracy… */
   meta?: (node: TreeNode) => ReactNode;
+  /** Put a topic's counts on their own line under its name (for long counts). */
+  stackTopicMeta?: boolean;
   /** Label for the whole list, e.g. "Topics". */
   label: string;
 }
@@ -23,12 +25,12 @@ interface Props {
  * checkboxes (`indeterminate` for a partly-selected branch), so Tab, Space and Enter work and
  * screen readers announce them without extra key handling. Rows and buttons are 44 px tall.
  */
-export function TopicTree({ nodes, expanded, selection, meta, label }: Props) {
+export function TopicTree({ nodes, expanded, selection, meta, label, stackTopicMeta }: Props) {
   const prefix = useId();
   const all = branchIds(nodes);
   const anyOpen = all.some(expanded.isOpen);
   return (
-    <div className="ttree" data-testid="topic-tree">
+    <div className={`ttree${stackTopicMeta ? " ttree-stack" : ""}${selection ? " ttree-sel" : ""}`} data-testid="topic-tree">
       {all.length > 0 && (
         <div className="ttree-tools">
           <button type="button" className="linkish" onClick={() => expanded.setAll(anyOpen ? [] : all)} data-testid="tree-expand-all">

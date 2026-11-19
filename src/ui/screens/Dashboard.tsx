@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { missedIds, moduleStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW, WEAKEST_DRILLED, WEAKEST_SHOWN, weakestTopics } from '../../engine/progress';
+import { missedIds, nodeStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW, WEAKEST_DRILLED, WEAKEST_SHOWN, weakestTopics } from '../../engine/progress';
 import { useApp } from '../../state/AppProvider';
 import { CardsTile, useCardStats } from '../components/CardsTile';
 import { BackupReminder } from '../components/SyncExport';
 import { SetAsideWarning } from '../components/SetAsideWarning';
+import { TopicTree } from '../components/TopicTree';
+import { buildTree, topicPath } from '../topicTree';
 import { useBreakpoint } from '../useBreakpoint';
+import { useExpanded } from '../useExpanded';
 import { Welcome } from './Welcome';
 
 export function barClass(p: number): string {
@@ -31,13 +34,15 @@ export function Dashboard() {
   const phone = useBreakpoint() === 'phone';
   const [showAllTopics, setShowAllTopics] = useState(false);
   const cardStats = useCardStats();
+  const tree = useMemo(() => (ix ? buildTree(ix) : []), [ix]);
+  const expanded = useExpanded('home', ix?.pack.packId ?? '');
   const stats = useMemo(() => {
     if (!ix) return null;
     const relevant = progress.attempts.filter((a) => a.packId === ix.pack.packId);
     return {
       overall: overallStats(ix, relevant),
       topics: topicStats(ix, relevant),
-      modules: moduleStats(ix, relevant),
+      attempts: relevant,
       missed: [...missedIds(relevant)].filter((id) => ix.question.has(id)).length,
     };
   }, [ix, progress.attempts]);
@@ -121,7 +126,7 @@ export function Dashboard() {
               <div>
                 <div style={{ fontWeight: 500 }}>{t.name}</div>
                 <div className="small muted">
-                  {t.moduleName} · {t.total} answered
+                  {topicPath(ix, t.topicId).join(' › ')} · {t.total} answered
                 </div>
               </div>
               <div className="bar">
@@ -150,16 +155,23 @@ export function Dashboard() {
             </p>
           </div>
           <div>
-            <h2 style={{ marginBottom: 4 }}>By module</h2>
-            {stats.modules.map((m) => (
-              <div key={m.moduleId} className="list-row">
-                <span>{m.name}</span>
-                <span className="muted">
-                  {m.seen ? `${m.pct}% · ` : ''}
-                  {m.seen} of {m.available} seen
-                </span>
-              </div>
-            ))}
+            <h2 style={{ marginBottom: 4 }}>{ix.group.size ? 'By group and module' : 'By module'}</h2>
+            <TopicTree
+              stackTopicMeta
+              label="Progress by group, module and topic"
+              nodes={tree}
+              expanded={expanded}
+              meta={(n) => {
+                const st = nodeStats(ix, stats.attempts, n.topicIds);
+                return (
+                  <>
+                    {st.seen ? `${st.pct}% · ` : ''}
+                    {st.seen} of {st.available} seen
+                    {n.kind === 'topic' && cardStats?.perTopic.get(n.refId) && ` · cards ${cardStats.perTopic.get(n.refId)!.learned}/${cardStats.perTopic.get(n.refId)!.total}`}
+                  </>
+                );
+              }}
+            />
           </div>
           {phone ? (
             <details className="collapse" data-testid="recent-sessions">

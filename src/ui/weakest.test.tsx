@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import type { Pack } from '../pack/schema';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { attempt, makePack } from '../../test/makePack';
 import { WEAKEST_SHOWN, weakestTopics } from '../engine/progress';
 import { AppProvider } from '../state/AppProvider';
@@ -66,5 +67,45 @@ describe('Home: weakest topics section', () => {
     const section = await screen.findByTestId('topics');
     expect(within(section).queryByTestId('drill-weakest')).toBeNull();
     expect(within(section).queryByRole('button', { name: /Show all/ })).toBeNull();
+  });
+});
+
+describe('Home: path and group tree', () => {
+  afterEach(cleanup);
+  beforeEach(() => window.localStorage.clear());
+
+  async function home(pack: Pack) {
+    const store = new MemoryDataStore();
+    await store.write('progress', { ...emptyProgress(), attempts: [{ ...attempt('q-alpha-0001', false), id: 'x1' }, { ...attempt('q-beta-0001', true), id: 'x2' }] });
+    window.location.hash = '#/';
+    render(
+      <AppProvider store={store} bundledPacks={[pack]} loadImported={async () => []} saveImported={async () => {}}>
+        <App />
+      </AppProvider>,
+    );
+    return screen.findByTestId('topics');
+  }
+  const grouped = () => makePack({ alpha: 2, beta: 2 }, { moduleGroups: [{ id: 'g1', name: 'Exam One', moduleIds: ['alpha', 'beta'] }] });
+
+  it('a weakest topic shows its path: group › module', async () => {
+    const section = await home(grouped());
+    expect(within(section).getAllByTestId('topic-row')[0]).toHaveTextContent('Exam One › ALPHA · 1 answered');
+  });
+
+  it('without groups the row shows just the module, as before', async () => {
+    const section = await home(makePack({ alpha: 2, beta: 2 }));
+    expect(within(section).getAllByTestId('topic-row')[0]).toHaveTextContent(/^alpha topicALPHA · 1 answered/);
+  });
+
+  it('the progress tree is collapsed, shows seen / accuracy at every level, and opens level by level', async () => {
+    await home(grouped());
+    const tree = screen.getByTestId('topic-tree');
+    expect(within(tree).getByRole('button', { name: /Exam One/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(within(tree).queryByRole('button', { name: /ALPHA/ })).toBeNull();
+    expect(tree).toHaveTextContent('50% · 2 of 4 seen'); // group: alpha wrong, beta right
+    fireEvent.click(within(tree).getByRole('button', { name: /Exam One/ }));
+    expect(tree).toHaveTextContent('0% · 1 of 2 seen'); // ALPHA
+    fireEvent.click(within(tree).getByRole('button', { name: /ALPHA/ }));
+    expect(within(tree).getByText(/alpha topic/)).toBeInTheDocument();
   });
 });

@@ -62,3 +62,31 @@ test('phone: the missed / flagged links stay reachable on Home', async ({ page }
   await expect(page.getByRole('link', { name: /flagged$/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /missed$/ })).toBeVisible();
 });
+
+test('Home: the weakest topic shows its path, and the progress tree opens level by level and remembers it', async ({ page }, info) => {
+  await drillFlow(page, '/'); // answers 3 questions from Glowroot anatomy (First season › Glowroots)
+  await page.goto('/#/');
+  await expect(page.getByTestId('topic-row').first()).toContainText('First season › Glowroots · 3 answered');
+
+  const tree = page.getByTestId('topic-tree');
+  const group = tree.getByRole('button', { name: /^First season/ });
+  await expect(group).toHaveAttribute('aria-expanded', 'false');
+  await expect(group).toBeVisible();
+  await expect(tree.getByTestId('tree-group').first()).toContainText(/\d+% · 3 of 9 seen/);
+  await expect(tree.getByRole('button', { name: /^Glowroots/ })).toHaveCount(0);
+
+  await group.click();
+  await tree.getByRole('button', { name: /^Glowroots/ }).click();
+  await expect(tree.getByTestId('tree-topic').filter({ hasText: 'Glowroot anatomy' })).toContainText(/3 of \d+ seen/);
+  await info.attach(`home-tree-${info.project.name}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+
+  await page.reload();
+  await expect(tree.getByTestId('tree-topic').filter({ hasText: 'Glowroot anatomy' })).toBeVisible();
+  const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(over).toBeLessThanOrEqual(0);
+  // Rows and toggles are at least 44px tall.
+  const small = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('.ttree button, .ttree .tt-label')].filter((el) => el.offsetParent !== null && el.getBoundingClientRect().height < 44).length,
+  );
+  expect(small).toBe(0);
+});
