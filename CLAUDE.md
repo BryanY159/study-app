@@ -62,6 +62,9 @@ dependency, and don't add a `prepare` script.
 ## Releases
 - Push to `main` / PR: CI runs leak guard → typecheck → unit → e2e → build → leak guard on `dist/`.
 - Tag `vX.Y.Z`: the same checks, then deploy to GitHub Pages.
+- **Local gate:** `bash scripts/gate.sh` runs the same checks (leak guard, typecheck, unit, e2e, leak guard on `dist/`) and stops at the first failure.
+  `scripts/hooks/pre-push` runs it before every push, branch or tag. Enable it once per clone with
+  `git config core.hooksPath scripts/hooks` (a hook cannot be switched on by the repo itself). Do not bypass it with `--no-verify`.
 
 ## Working style
 - Follow the SDLC: plan first (plans live in the content repo's `docs/`), then
