@@ -17,9 +17,14 @@ export default defineConfig({
     : [['list']],
   use: { baseURL: 'http://localhost:4173', trace: process.env.CI ? 'on-first-retry' : 'off' },
   projects: [
-    { name: 'phone', use: { browserName: 'webkit', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
-    { name: 'tablet', use: { browserName: 'webkit', viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
-    { name: 'desktop', use: { browserName: 'chromium', viewport: { width: 1280, height: 800 } } },
+    { name: 'phone', testIgnore: /perf.spec/, use: { browserName: 'webkit', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
+    { name: 'tablet', testIgnore: /perf.spec/, use: { browserName: 'webkit', viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+    { name: 'desktop', testIgnore: /perf.spec/, use: { browserName: 'chromium', viewport: { width: 1280, height: 800 } } },
+    // The timing test (e2e/perf.spec.ts) runs last and alone: each perf project waits for the one before it,
+    // and the first waits for every functional project, so nothing else loads the machine while it measures.
+    { name: 'perf-phone', testMatch: /perf.spec/, dependencies: ['phone', 'tablet', 'desktop'], use: { browserName: 'webkit', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
+    { name: 'perf-tablet', testMatch: /perf.spec/, dependencies: ['perf-phone'], use: { browserName: 'webkit', viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+    { name: 'perf-desktop', testMatch: /perf.spec/, dependencies: ['perf-tablet'], use: { browserName: 'chromium', viewport: { width: 1280, height: 800 } } },
   ],
   webServer: {
     command: 'npm run preview',

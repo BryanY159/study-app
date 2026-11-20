@@ -1,8 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { makePack } from '../test/makePack';
+import { readFileSync, readdirSync } from 'node:fs';
 import { drillFlow, importPack, SAMPLE_PACK, waitForSaved } from './flows';
 
 // The built app (dist/, served by vite preview), with every request to another host blocked:
@@ -82,37 +79,6 @@ test('sync export works and an answer survives a reload (IndexedDB)', async ({ p
   const file = JSON.parse(readFileSync(await d.path(), 'utf8'));
   expect(file).toMatchObject({ kind: 'studyapp-sync', formatVersion: 3, device: 'Laptop', cards: { schemaVersion: 1 } });
   expect(file.progress.attempts.length).toBeGreaterThanOrEqual(3);
-});
-
-test('perf: 600-question pack imports and stays fast', async ({ page }) => {
-  await offline(page);
-  const big = { ...makePack({ alpha: 250, beta: 150, gamma: 200 }, { groups: 10 }), packId: 'perf-pack', title: 'Perf pack' };
-  const file = path.join(tmpdir(), `perf-pack-${test.info().project.name}-${test.info().repeatEachIndex}.json`);
-  writeFileSync(file, JSON.stringify(big));
-  await importPack(page, APP, file, 600);
-
-  const t0 = Date.now();
-  await page.goto(APP + '#/');
-  await expect(page.getByText('Welcome back')).toBeVisible();
-  const dashboardMs = Date.now() - t0;
-  expect(dashboardMs).toBeLessThan(1000);
-
-  await page.goto(APP + '#/drill');
-  await page.getByRole('button', { name: /^All \(600\)/ }).click();
-  await page.getByRole('button', { name: /Start drill/ }).click();
-  const times: number[] = [];
-  for (let i = 1; i <= 10; i++) {
-    await expect(page.getByTestId('drill-position')).toContainText(`Question ${i} of 600`);
-    await page.keyboard.press('a');
-    await expect(page.getByTestId('feedback')).toBeVisible();
-    const s = Date.now();
-    await page.keyboard.press('Enter');
-    await expect(page.getByTestId('drill-position')).toContainText(`Question ${i + 1} of 600`);
-    times.push(Date.now() - s);
-  }
-  const avg = times.reduce((a, b) => a + b, 0) / times.length;
-  console.log(`perf: dashboard ${dashboardMs} ms, drill next avg ${Math.round(avg)} ms`);
-  expect(avg).toBeLessThan(100);
 });
 
 test('an embedded (data: URI) figure from an imported pack renders', async ({ page }) => {
