@@ -33,7 +33,20 @@ jobs:
       - name: Install Playwright browsers (Chromium + WebKit for the phone and tablet projects)
         run: npx playwright install --with-deps chromium webkit
       - name: End-to-end tests (builds first)
+        id: e2e
         run: npm run e2e
+      - name: Failed e2e tests (summary)
+        if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
+        run: npx tsx scripts/e2e-summary.ts
+      - name: Upload Playwright report and traces
+        if: ${{ failure() && steps.e2e.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
       - name: Leak guard (tracked files + built output)
         run: npm run leak-guard -- --dist
       - name: Upload site

@@ -9,8 +9,13 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   timeout: 60_000,
-  reporter: [['list']],
-  use: { baseURL: 'http://localhost:4173' },
+  // CI only: retry twice (a flaky test shows as "flaky", not red), keep a trace of each retry, and write
+  // an HTML report plus a JSON one that scripts/e2e-summary.ts prints from. Locally: no retries, list only.
+  retries: process.env.CI ? 2 : 0,
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }], ['json', { outputFile: 'test-results/results.json' }]]
+    : [['list']],
+  use: { baseURL: 'http://localhost:4173', trace: process.env.CI ? 'on-first-retry' : 'off' },
   projects: [
     { name: 'phone', use: { browserName: 'webkit', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
     { name: 'tablet', use: { browserName: 'webkit', viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
