@@ -82,7 +82,7 @@ export function MockResults({ sessionId }: { sessionId: string }) {
                 const sec = packSections?.find((x) => x.name === sc.name);
                 const topics = sec ? sectionTopicIds(ix, sec) : [];
                 // An origin section has no modules; the study-bank one drills through the bank filter.
-                const drillHref = sec?.origins?.includes('study-bank') ? '#/drill?filter=bank' : topics.length ? `#/drill?topics=${topics.join(',')}` : null;
+                const drillHref = sec?.origins?.includes('study-bank') ? '#/drill?source=bank' : topics.length ? `#/drill?topics=${topics.join(',')}` : null;
                 return (
                   <div key={sc.name} className={`section-row${i === weakestSection ? ' weakest' : ''}`} data-testid="section-row">
                     <span>

@@ -5,12 +5,19 @@ import { toUnits } from './packIndex';
 import { latestByQuestion } from './progress';
 import { shuffle, type Rand } from './rng';
 
-/** 'bank' = only the instructor's study-bank questions. */
+/**
+ * Which of the chosen questions to drill. 'bank' is the v2.3.0 value for "study bank only"; it stays
+ * as an alias of source 'bank' + filter 'all' so older links keep working.
+ */
 export type DrillFilter = 'all' | 'unseen' | 'missed' | 'bank';
+/** Where the questions come from; combines with any DrillFilter. */
+export type DrillSource = 'all' | 'bank';
 
 export interface DrillOptions {
   topicIds: ReadonlySet<string>;
   filter: DrillFilter;
+  /** Default 'all'. 'bank' keeps only study-bank questions, then the filter applies on top. */
+  source?: DrillSource;
   count: number | 'all';
   /** e.g. flagged questions when "hide flagged" is on. */
   excludeIds?: ReadonlySet<string>;
@@ -22,9 +29,9 @@ export function drillPool(ix: PackIndex, attempts: readonly Attempt[], opts: Dri
   return ix.pack.questions.filter((q) => {
     if (!q.topicIds.some((t) => opts.topicIds.has(t))) return false;
     if (opts.excludeIds?.has(q.id)) return false;
+    if ((opts.source === 'bank' || opts.filter === 'bank') && q.origin !== 'study-bank') return false;
     const last = latest.get(q.id);
     if (opts.filter === 'unseen') return !last;
-    if (opts.filter === 'bank') return q.origin === 'study-bank';
     if (opts.filter === 'missed') return !!last && !last.correct;
     return true;
   });

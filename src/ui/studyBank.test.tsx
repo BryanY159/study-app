@@ -57,7 +57,7 @@ describe('study bank on Home', () => {
     await open('#/', orrin);
     const tile = await screen.findByTestId('bank-tile');
     expect(within(tile).getByTestId('bank-progress')).toHaveTextContent('0 / 2 worked through');
-    expect(within(tile).getByTestId('drill-bank').getAttribute('href')).toBe('#/drill?filter=bank');
+    expect(within(tile).getByTestId('drill-bank').getAttribute('href')).toBe('#/drill?source=bank&filter=unseen');
   });
 
   it('counts a bank question once it has been answered (other questions do not count)', async () => {
@@ -77,17 +77,17 @@ describe('study bank on Home', () => {
 
 describe('drill filter "Study bank only"', () => {
   it('is offered when the pack has bank questions, and the Home button opens the drill with it chosen', async () => {
-    await open('#/drill?filter=bank', orrin);
+    await open('#/drill?source=bank', orrin);
     const radio = (await screen.findByRole('radio', { name: /Study bank only/ })) as HTMLInputElement;
     expect(radio.checked).toBe(true);
-    expect(screen.getByRole('button', { name: /Start drill · 2 questions/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start drill · 2 study bank questions/ })).toBeInTheDocument();
   });
 
   it('can be picked from the filter list', async () => {
     const user = userEvent.setup();
     await open('#/drill', orrin);
     await user.click(await screen.findByRole('radio', { name: /Study bank only/ }));
-    expect(screen.getByRole('button', { name: /Start drill · 2 questions/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start drill · 2 study bank questions/ })).toBeInTheDocument();
   });
 
   it('is not offered when the pack has no bank questions', async () => {
@@ -100,8 +100,8 @@ describe('drill filter "Study bank only"', () => {
 describe('"Instructor\'s study bank" badge and the question note', () => {
   it('shows the badge in a drill, and the note above the explanations once answered', async () => {
     const user = userEvent.setup();
-    await open('#/drill?filter=bank&topics=beta-skyvine-growth', orrin); // only q-bank-0001 (has a note)
-    await user.click(await screen.findByRole('button', { name: /Start drill · 1 question/ }));
+    await open('#/drill?source=bank&topics=beta-skyvine-growth', orrin); // only q-bank-0001 (has a note)
+    await user.click(await screen.findByRole('button', { name: /Start drill · 1 study bank question/ }));
     expect(await screen.findByTestId('bank-badge')).toHaveTextContent("Instructor's study bank");
     expect(screen.queryByTestId('question-note')).toBeNull(); // not before answering
     fireEvent.keyDown(window, { key: 'A' });
@@ -113,8 +113,8 @@ describe('"Instructor\'s study bank" badge and the question note', () => {
 
   it('a bank question without a note shows no notice', async () => {
     const user = userEvent.setup();
-    await open('#/drill?filter=bank&topics=beta-skyvine-signals', orrin); // only q-bank-0002
-    await user.click(await screen.findByRole('button', { name: /Start drill · 1 question/ }));
+    await open('#/drill?source=bank&topics=beta-skyvine-signals', orrin); // only q-bank-0002
+    await user.click(await screen.findByRole('button', { name: /Start drill · 1 study bank question/ }));
     expect(await screen.findByTestId('bank-badge')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'A' });
     await screen.findByTestId('feedback');

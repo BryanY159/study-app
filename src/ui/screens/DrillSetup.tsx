@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { mulberry32, randomSeed } from '../../engine/rng';
-import { buildDrill, drillPool, type DrillFilter } from '../../engine/select';
+import { buildDrill, drillPool, type DrillFilter, type DrillSource } from '../../engine/select';
 import type { PackIndex } from '../../engine/packIndex';
 import { useApp } from '../../state/AppProvider';
 import { TopicTree } from '../components/TopicTree';
@@ -28,7 +28,12 @@ export function DrillSetup({ route }: { route: Route }) {
   const { ix, progress, flags, updateProgress, startSession, setDrill } = useApp();
   const preset = route.query.get('topics')?.split(',').filter(Boolean);
   const [topics, setTopics] = useState<Set<string>>(() => new Set(preset?.length ? preset : ix ? [...ix.topic.keys()] : []));
-  const [filter, setFilter] = useState<DrillFilter>(() => (route.query.get('filter') as DrillFilter) || 'all');
+  // Links: ?source=bank&filter=unseen. The v2.3.0 link ?filter=bank still means study bank, all of it.
+  const [source, setSource] = useState<DrillSource>(() => (route.query.get('source') === 'bank' || route.query.get('filter') === 'bank' ? 'bank' : 'all'));
+  const [filter, setFilter] = useState<DrillFilter>(() => {
+    const f = route.query.get('filter');
+    return f === 'unseen' || f === 'missed' ? f : 'all';
+  });
   const [count, setCount] = useState<number | 'all'>(20);
   const hideFlagged = progress.settings.hideFlagged;
   const tree = useMemo(() => (ix ? buildTree(ix) : []), [ix]);
@@ -41,7 +46,7 @@ export function DrillSetup({ route }: { route: Route }) {
     [hideFlagged, flags.flags],
   );
   const hasBank = !!ix?.pack.questions.some((q) => q.origin === 'study-bank');
-  const poolFor = (f: DrillFilter, ts: ReadonlySet<string>) => (ix ? drillPool(ix, attempts, { topicIds: ts, filter: f, count: 'all', excludeIds }) : []);
+  const poolFor = (f: DrillFilter, ts: ReadonlySet<string>) => (ix ? drillPool(ix, attempts, { topicIds: ts, filter: f, source, count: 'all', excludeIds }) : []);
   const available = poolFor(filter, topics).length;
 
   if (!ix) return <Welcome />;
@@ -54,7 +59,7 @@ export function DrillSetup({ route }: { route: Route }) {
   };
 
   const start = () => {
-    const qs = buildDrill(ix, attempts, { topicIds: topics, filter, count, excludeIds }, mulberry32(randomSeed()));
+    const qs = buildDrill(ix, attempts, { topicIds: topics, filter, source, count, excludeIds }, mulberry32(randomSeed()));
     if (!qs.length) return;
     const questionIds = qs.map((q) => q.id);
     const sessionId = startSession({ mode: 'drill', packId: ix.pack.packId, label: drillLabel(ix, topics), questionIds });
@@ -62,6 +67,10 @@ export function DrillSetup({ route }: { route: Route }) {
     navigate('/drill/run');
   };
   const n = count === 'all' ? available : Math.min(count, available);
+  // "Start drill · 167 study bank not seen yet"; with neither choice it stays "N questions".
+  const noun = `question${n === 1 ? '' : 's'}`;
+  const filterText = filter === 'unseen' ? 'not seen yet' : filter === 'missed' ? 'previously missed' : '';
+  const startText = [n, source === 'bank' ? 'study bank' : '', filterText || (source === 'bank' || filter === 'all' ? noun : '')].filter((x) => x !== '').join(' ');
 
   return (
     <main className="page">
@@ -96,19 +105,34 @@ export function DrillSetup({ route }: { route: Route }) {
               </button>
             </div>
           </div>
-          <div className="stack" style={{ gap: 0 }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>Which questions</div>
+          {(hasBank || source === 'bank') && (
+            <div className="stack" style={{ gap: 0 }} role="radiogroup" aria-label="Questions from">
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Questions from</div>
+              {(
+                [
+                  ['all', 'All questions'],
+                  ['bank', 'Study bank only'],
+                ] as const
+              ).map(([v, label]) => (
+                <label key={v} className="check">
+                  <input type="radio" name="source" checked={source === v} onChange={() => setSource(v)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
+          <div className="stack" style={{ gap: 0 }} role="radiogroup" aria-label="Which ones">
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Which ones</div>
             {(
               [
-                ['all', 'All in selected topics'],
+                ['all', 'All'],
                 ['unseen', 'Not seen yet'],
                 ['missed', 'Previously missed'],
-                ...(hasBank || filter === 'bank' ? ([['bank', 'Study bank only']] as const) : []),
               ] as const
             ).map(([f, label]) => (
               <label key={f} className="check">
                 <input type="radio" name="filter" checked={filter === f} onChange={() => setFilter(f)} />
-                {label} {f !== 'all' && <span className="muted">({poolFor(f, topics).length})</span>}
+                {label} <span className="muted">({poolFor(f, topics).length})</span>
               </label>
             ))}
           </div>
@@ -121,7 +145,7 @@ export function DrillSetup({ route }: { route: Route }) {
             Hide flagged questions
           </label>
           <button type="button" className="btn primary big" disabled={n === 0} onClick={start}>
-            Start drill · {n} question{n === 1 ? '' : 's'}
+            Start drill · {startText}
           </button>
           <p className="small muted">
             {topics.size} topic{topics.size === 1 ? '' : 's'} selected · {available} question{available === 1 ? '' : 's'} available

@@ -290,8 +290,12 @@ works by allowlist, so it never names real content:
 - **Origin `study-bank`.** A question with `origin: "study-bank"` gets an "Instructor's study
   bank" badge next to its topic chip (drill, mock, results review, flags). Home shows a tile with
   "N / M worked through" (bank questions answered at least once, `bankStats`) and a button to
-  `#/drill?filter=bank`. Drill setup has a "Study bank only" filter, shown when the pack has bank
-  questions (`DrillFilter` `'bank'`).
+  `#/drill?source=bank&filter=unseen`. Drill setup has two combinable choices (v2.3.1): **Questions
+  from** ("All questions" / "Study bank only", the latter shown when the pack has bank questions;
+  `DrillSource`) and **Which ones** ("All" / "Not seen yet" / "Previously missed", `DrillFilter`),
+  each with its count for the current source and topics. The Start button states the total ("Start
+  drill · 167 study bank not seen yet"). Links use `?source=bank&filter=unseen|missed`; the v2.3.0
+  link `?filter=bank` still opens "Study bank only" + "All".
 - **`note`.** An optional text on a question, shown as a notice above the options and explanations
   wherever feedback is shown (drill, results review, flags). Meant for "Not found in lecture
   sources (may be from lab)".

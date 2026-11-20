@@ -116,7 +116,7 @@ export function Dashboard() {
               {stats.bank.seen} / {stats.bank.total} worked through
             </p>
           </div>
-          <a className="btn primary" href="#/drill?filter=bank" data-testid="drill-bank">
+          <a className="btn primary" href="#/drill?source=bank&filter=unseen" data-testid="drill-bank">
             Drill study bank
           </a>
         </section>
