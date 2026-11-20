@@ -58,8 +58,8 @@ export function checkPack(pack: Pack): CheckResult {
     const sectionOfModule = new Map<string, string>();
     sections.forEach((sec, i) => {
       const at = `examBlueprint.sections.${i}`;
-      if (!!sec.groupIds === !!sec.moduleIds) {
-        errors.push({ path: at, message: `section "${sec.name}" must name groupIds or moduleIds (exactly one of the two)` });
+      if ([sec.groupIds, sec.moduleIds, sec.origins].filter(Boolean).length !== 1) {
+        errors.push({ path: at, message: `section "${sec.name}" must name groupIds, moduleIds or origins (exactly one of the three)` });
       }
       const mods = new Set<string>();
       for (const gid of sec.groupIds ?? []) {
@@ -81,7 +81,10 @@ export function checkPack(pack: Pack): CheckResult {
     if (total !== pack.examBlueprint.questionCount) {
       errors.push({ path: 'examBlueprint.sections', message: `section counts add up to ${total}, but questionCount is ${pack.examBlueprint.questionCount}` });
     }
-    const left = pack.modules.filter((m) => !sectionOfModule.has(m.id));
+    // Questions an origin section claims never reach a module section, so they don't need one.
+    const claimed = new Set(sections.flatMap((sec) => sec.origins ?? []));
+    const moduleOfQuestion = (q: { topicIds: string[] }) => topicModule.get(q.topicIds[0]);
+    const left = pack.modules.filter((m) => !sectionOfModule.has(m.id) && pack.questions.some((q) => !claimed.has(q.origin) && moduleOfQuestion(q) === m.id));
     if (left.length) warnings.push({ path: 'examBlueprint.sections', message: `a mock never includes these modules (in no section): ${left.map((m) => m.id).join(', ')}` });
     if (pack.examBlueprint.minModuleShare > 0) {
       warnings.push({ path: 'examBlueprint.minModuleShare', message: 'minModuleShare is ignored when sections are set' });

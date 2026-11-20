@@ -36,7 +36,7 @@ async function serveCopy(): Promise<{ url: string; dir: string; server: Server }
 async function importSample(page: Page, url: string) {
   await page.goto(url + '#/data');
   await page.getByTestId('pack-input').setInputFiles(SAMPLE_PACK);
-  await expect(page.getByTestId('data-message')).toContainText('13 questions');
+  await expect(page.getByTestId('data-message')).toContainText('16 questions');
   await page.goto(url + '#/');
   await expect(page.getByText('Welcome back')).toBeVisible();
 }

@@ -7,6 +7,7 @@ export const REASON_LABEL: Record<FlagReason, string> = {
   'explanation-wrong': 'Explanation wrong',
   unclear: 'Unclear',
   typo: 'Typo',
+  'office-hours': 'Ask at office hours',
   other: 'Other',
 };
 
@@ -84,6 +85,11 @@ export function seedPreflags(flags: readonly Flag[], packs: readonly Pack[], now
 export function prunePreflags(flags: readonly Flag[], packs: readonly Pack[]): Flag[] | null {
   const kept = flags.filter((f) => !(f.source === 'preflag' && !f.comment.trim() && flagState(f, packs) === 'resolved'));
   return kept.length === flags.length ? null : kept;
+}
+
+/** Keep only flags with this reason (all of them when no reason is given). Used to export e.g. just "Ask at office hours". */
+export function filterFlagsByReason(flags: readonly Flag[], reason?: FlagReason): Flag[] {
+  return reason ? flags.filter((f) => f.reason === reason) : [...flags];
 }
 
 /** JSON export: each flag with a snapshot of the question, ready for the pipeline. */

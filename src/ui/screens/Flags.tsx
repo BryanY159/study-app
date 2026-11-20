@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { flagState, flagsToJson, flagsToMarkdown, REASON_LABEL } from '../../engine/flags';
+import { filterFlagsByReason, flagState, flagsToJson, flagsToMarkdown, REASON_LABEL } from '../../engine/flags';
 import { cardsOf, type Flashcard, type Question } from '../../pack/schema';
-import type { Flag } from '../../storage/docs';
+import { FLAG_REASONS, type Flag, type FlagReason } from '../../storage/docs';
 import { downloadFile } from '../../storage/backup';
 import { dateStamp } from '../../storage/syncFile';
 import { useApp } from '../../state/AppProvider';
@@ -17,6 +17,7 @@ export function Flags() {
   const [tab, setTab] = useState<'open' | 'resolved'>('open');
   const [kind, setKind] = useState<Kind>('all');
   const [editing, setEditing] = useState<{ flag: Flag; item: FlagItem } | null>(null);
+  const [exportReason, setExportReason] = useState<FlagReason | ''>('');
   const [openId, setOpenId] = useState<string | null>(null);
 
   const withState = flags.flags.filter((f) => kind === 'all' || f.itemType === kind).map((f) => ({ f, state: flagState(f, packs) }));
@@ -27,8 +28,10 @@ export function Flags() {
 
   const exportFlags = () => {
     const stamp = dateStamp();
-    downloadFile(`flags-${stamp}.json`, flagsToJson(flags.flags, packs));
-    downloadFile(`flags-${stamp}.md`, flagsToMarkdown(flags.flags, packs), 'text/markdown');
+    const chosen = filterFlagsByReason(flags.flags, exportReason || undefined);
+    const tag = exportReason ? `-${exportReason}` : '';
+    downloadFile(`flags${tag}-${stamp}.json`, flagsToJson(chosen, packs));
+    downloadFile(`flags${tag}-${stamp}.md`, flagsToMarkdown(chosen, packs), 'text/markdown');
   };
 
   return (
@@ -40,9 +43,19 @@ export function Flags() {
             Questions{hasCards ? ' and cards' : ''} you reported. Export them to get the pack fixed.
           </p>
         </div>
-        <button type="button" className="btn" onClick={exportFlags} disabled={!flags.flags.length}>
-          Export flags for review
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          <select aria-label="Export only this reason" value={exportReason} onChange={(e) => setExportReason(e.target.value as FlagReason | '')}>
+            <option value="">All reasons</option>
+            {FLAG_REASONS.map((r) => (
+              <option key={r} value={r}>
+                {REASON_LABEL[r]}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn" onClick={exportFlags} disabled={!flags.flags.length}>
+            Export flags for review
+          </button>
+        </div>
       </div>
       <div className="row" style={{ gap: 8 }}>
         <div className="row" role="tablist" aria-label="Open or resolved" style={{ gap: 8 }}>

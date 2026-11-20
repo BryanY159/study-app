@@ -5,7 +5,8 @@ import { toUnits } from './packIndex';
 import { latestByQuestion } from './progress';
 import { shuffle, type Rand } from './rng';
 
-export type DrillFilter = 'all' | 'unseen' | 'missed';
+/** 'bank' = only the instructor's study-bank questions. */
+export type DrillFilter = 'all' | 'unseen' | 'missed' | 'bank';
 
 export interface DrillOptions {
   topicIds: ReadonlySet<string>;
@@ -23,6 +24,7 @@ export function drillPool(ix: PackIndex, attempts: readonly Attempt[], opts: Dri
     if (opts.excludeIds?.has(q.id)) return false;
     const last = latest.get(q.id);
     if (opts.filter === 'unseen') return !last;
+    if (opts.filter === 'bank') return q.origin === 'study-bank';
     if (opts.filter === 'missed') return !!last && !last.correct;
     return true;
   });

@@ -125,6 +125,13 @@ export function nodeStats(ix: PackIndex, attempts: readonly Attempt[], topicIds:
   return { seen: seen.length, available: qs.length, ...s, pct: pct(s) };
 }
 
+/** Study-bank progress: questions with origin "study-bank", and how many of them have been answered at least once. */
+export function bankStats(ix: PackIndex, attempts: readonly Attempt[]): { total: number; seen: number } {
+  const latest = latestByQuestion(attempts);
+  const bank = ix.pack.questions.filter((q) => q.origin === 'study-bank');
+  return { total: bank.length, seen: bank.filter((q) => latest.has(q.id)).length };
+}
+
 export interface GroupStat extends NodeStat {
   groupId: string;
   name: string;

@@ -21,6 +21,11 @@ export function QuestionMeta({ q, ix, extra }: { q: Question; ix: PackIndex; ext
       <span className="chip accent">
         {module?.name} · {topic?.name}
       </span>
+      {q.origin === 'study-bank' && (
+        <span className="chip bank" data-testid="bank-badge">
+          Instructor's study bank
+        </span>
+      )}
       <span className="chip">{LEVEL_LABEL[q.level]}</span>
       {q.origin === 'course-practice' && <span className="chip practice">Course practice</span>}
       <span className="grow" />
@@ -99,6 +104,11 @@ export function OptionPicker({ q, selected, onPick }: { q: Question; selected: s
 export function OptionFeedback({ q, chosen }: { q: Question; chosen: readonly string[] }) {
   return (
     <div className="options" data-testid="feedback">
+      {q.note && (
+        <div className="banner warn" role="note" data-testid="question-note">
+          {q.note}
+        </div>
+      )}
       {q.options.map((o) => {
         const picked = chosen.includes(o.key);
         const cls = o.correct ? 'correct' : picked ? 'picked-wrong' : 'plain';

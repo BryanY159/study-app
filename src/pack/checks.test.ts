@@ -73,7 +73,7 @@ describe('groups', () => {
   it('a pack without groups parses to the same thing as before', () => {
     const p = clone();
     delete p.groups;
-    p.examBlueprint.sections = [{ name: 'All', moduleIds: ['alpha', 'beta', 'gamma'], count: 6 }]; // sections that don't use groups
+    p.examBlueprint.sections = [{ name: 'All', moduleIds: ['alpha', 'beta', 'gamma'], count: 8 }]; // sections that don't use groups
     const r = parsePack(p);
     expect(r.ok && r.warnings).toEqual([]);
     expect(r.ok && r.pack.groups).toBeUndefined();
@@ -82,7 +82,7 @@ describe('groups', () => {
   it('an empty groups list is fine', () => {
     const p = clone();
     p.groups = [];
-    p.examBlueprint.sections = [{ name: 'All', moduleIds: ['alpha', 'beta', 'gamma'], count: 6 }];
+    p.examBlueprint.sections = [{ name: 'All', moduleIds: ['alpha', 'beta', 'gamma'], count: 8 }];
     expect(parsePack(p).ok).toBe(true);
   });
 
@@ -142,7 +142,7 @@ describe('exam sections', () => {
   });
 
   it('rejects counts that do not add up to questionCount', () => {
-    expect(errs((p) => (p.examBlueprint.sections[0].count = 1))).toMatch(/add up to 4, but questionCount is 6/);
+    expect(errs((p) => (p.examBlueprint.sections[0].count = 1))).toMatch(/add up to 6, but questionCount is 8/);
   });
 
   it('rejects unknown group and module ids', () => {
@@ -150,9 +150,9 @@ describe('exam sections', () => {
     expect(errs((p) => (p.examBlueprint.sections[1].moduleIds = ['nope']))).toMatch(/unknown module "nope"/);
   });
 
-  it('needs exactly one of groupIds and moduleIds', () => {
-    expect(errs((p) => (p.examBlueprint.sections[0].moduleIds = ['alpha']))).toMatch(/exactly one of the two/);
-    expect(errs((p) => delete p.examBlueprint.sections[0].groupIds)).toMatch(/exactly one of the two/);
+  it('needs exactly one of groupIds, moduleIds and origins', () => {
+    expect(errs((p) => (p.examBlueprint.sections[0].moduleIds = ['alpha']))).toMatch(/exactly one of the three/);
+    expect(errs((p) => delete p.examBlueprint.sections[0].groupIds)).toMatch(/exactly one of the three/);
   });
 
   it('rejects a module in two sections, even through a group', () => {
@@ -166,7 +166,7 @@ describe('exam sections', () => {
 
   it('warns about modules in no section, and about minModuleShare with sections', () => {
     const r = run((p) => {
-      p.examBlueprint.sections = [{ name: 'Only gamma', moduleIds: ['gamma'], count: 6 }];
+      p.examBlueprint.sections = [{ name: 'Only gamma', moduleIds: ['gamma'], count: 8 }];
       p.examBlueprint.minModuleShare = 0.15;
     });
     const text = r.ok ? r.warnings.map((w) => w.message).join('\n') : '';

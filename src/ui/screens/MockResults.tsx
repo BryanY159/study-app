@@ -81,14 +81,16 @@ export function MockResults({ sessionId }: { sessionId: string }) {
               {sectionScores.map((sc, i) => {
                 const sec = packSections?.find((x) => x.name === sc.name);
                 const topics = sec ? sectionTopicIds(ix, sec) : [];
+                // An origin section has no modules; the study-bank one drills through the bank filter.
+                const drillHref = sec?.origins?.includes('study-bank') ? '#/drill?filter=bank' : topics.length ? `#/drill?topics=${topics.join(',')}` : null;
                 return (
                   <div key={sc.name} className={`section-row${i === weakestSection ? ' weakest' : ''}`} data-testid="section-row">
                     <span>
                       <strong>{sc.name}</strong>: {sc.correct} / {sc.total}, {pct(sc)}%
                       {i === weakestSection && <span className="chip warn" style={{ marginLeft: 8 }}>Weakest</span>}
                     </span>
-                    {topics.length > 0 && (
-                      <a className="btn small" href={`#/drill?topics=${topics.join(',')}`} data-testid="drill-section">
+                    {drillHref && (
+                      <a className="btn small" href={drillHref} data-testid="drill-section">
                         Drill this section
                       </a>
                     )}

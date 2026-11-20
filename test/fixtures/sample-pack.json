@@ -4,7 +4,7 @@
   "title": "Sample pack: Imaginary Botany of Planet Orrin",
   "examDate": "2031-04-01",
   "examBlueprint": {
-    "questionCount": 6,
+    "questionCount": 8,
     "timeLimitMinutes": 10,
     "minModuleShare": 0,
     "sections": [
@@ -21,6 +21,13 @@
           "gamma"
         ],
         "count": 3
+      },
+      {
+        "name": "Study bank",
+        "origins": [
+          "study-bank"
+        ],
+        "count": 2
       }
     ]
   },
@@ -331,6 +338,58 @@
         }
       ],
       "status": "verified"
+    },
+    {
+      "id": "q-alpha-0006",
+      "topicIds": [
+        "alpha-glowroot-light"
+      ],
+      "figure": null,
+      "type": "single",
+      "scenarioId": null,
+      "level": "recall",
+      "status": "verified",
+      "stem": "Which of these does a glowroot use to sense how much daylight is left?",
+      "options": [
+        {
+          "key": "A",
+          "text": "Its drift hairs",
+          "correct": false,
+          "explanation": "Drift hairs take in water vapour, not light."
+        },
+        {
+          "key": "B",
+          "text": "Its bark ring",
+          "correct": false,
+          "explanation": "The bark ring is protective only."
+        },
+        {
+          "key": "C",
+          "text": "Its root crown",
+          "correct": false,
+          "explanation": "The root crown anchors the plant."
+        },
+        {
+          "key": "D",
+          "text": "Its lumen sac",
+          "correct": true,
+          "explanation": "The lumen sac both stores and meters the gathered light."
+        },
+        {
+          "key": "E",
+          "text": "None of the above",
+          "correct": false,
+          "explanation": "The lumen sac is the answer, so this is wrong."
+        }
+      ],
+      "summary": "The lumen sac meters the light a glowroot has gathered.",
+      "origin": "generated",
+      "sources": [
+        {
+          "file": "source/sample/alpha/reading-1/slides.pdf",
+          "locator": "slide 5"
+        }
+      ]
     },
     {
       "id": "q-beta-0001",
@@ -703,6 +762,99 @@
         "reason": "unclear",
         "note": "The sample slide says white, but the sample notes say pale yellow."
       }
+    },
+    {
+      "id": "q-bank-0001",
+      "topicIds": [
+        "beta-skyvine-growth"
+      ],
+      "figure": null,
+      "type": "single",
+      "scenarioId": null,
+      "level": "recall",
+      "status": "verified",
+      "stem": "A skyvine tendril curls toward a wall at dusk. What is the most likely cause?",
+      "options": [
+        {
+          "key": "A",
+          "text": "Tendrils bend toward the nearest solid surface",
+          "correct": true,
+          "explanation": "Contact-seeking growth is how skyvines climb."
+        },
+        {
+          "key": "B",
+          "text": "The vine is searching for water",
+          "correct": false,
+          "explanation": "Skyvines take water through their leaves."
+        },
+        {
+          "key": "C",
+          "text": "The vine is avoiding the heat bulbs",
+          "correct": false,
+          "explanation": "Heat bulbs are an ember moss feature."
+        },
+        {
+          "key": "D",
+          "text": "The vine is shedding old leaves",
+          "correct": false,
+          "explanation": "Shedding does not move a tendril."
+        }
+      ],
+      "summary": "Skyvine tendrils seek contact.",
+      "origin": "study-bank",
+      "note": "Not found in lecture sources (may be from lab)",
+      "sources": [
+        {
+          "file": "source/sample/bank/study-bank.pdf",
+          "locator": "item 1"
+        }
+      ]
+    },
+    {
+      "id": "q-bank-0002",
+      "topicIds": [
+        "beta-skyvine-signals"
+      ],
+      "figure": null,
+      "type": "single",
+      "scenarioId": null,
+      "level": "recall",
+      "status": "verified",
+      "stem": "Which signal tells a skyvine to open its night leaves?",
+      "options": [
+        {
+          "key": "A",
+          "text": "A drop in light",
+          "correct": true,
+          "explanation": "Falling light triggers the night leaves."
+        },
+        {
+          "key": "B",
+          "text": "A rise in mineral fog",
+          "correct": false,
+          "explanation": "Mineral fog affects growth, not leaf opening."
+        },
+        {
+          "key": "C",
+          "text": "A touch on the root crown",
+          "correct": false,
+          "explanation": "Skyvines have no root crown."
+        },
+        {
+          "key": "D",
+          "text": "A change in soil colour",
+          "correct": false,
+          "explanation": "Soil colour is not a signal."
+        }
+      ],
+      "summary": "Falling light opens night leaves.",
+      "origin": "study-bank",
+      "sources": [
+        {
+          "file": "source/sample/bank/study-bank.pdf",
+          "locator": "item 2"
+        }
+      ]
     }
   ],
   "flashcards": [

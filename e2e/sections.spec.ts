@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { importPack, SAMPLE_PACK } from './flows';
 
-// Mock exam sections (v2.1.0), against the Orrin sample pack: "First season" 3 + "Ember moss" 3.
+// Mock exam sections (v2.1.0), against the Orrin sample pack: "First season" 3 + "Ember moss" 3 + "Study bank" 2.
 const sample = JSON.parse(readFileSync(SAMPLE_PACK, 'utf8'));
 
 /** Start a mock and walk through it, recording for each question whether it shows a scenario. */
@@ -23,7 +23,7 @@ async function walkMock(page: import('@playwright/test').Page, total: number) {
 
 test('a sectioned mock draws each section and keeps the scenario set together, with no warning', async ({ page }) => {
   await importPack(page, '/');
-  const scenario = await walkMock(page, 6);
+  const scenario = await walkMock(page, 8);
   // Ember moss' three questions share one scenario and sit side by side.
   expect(scenario.filter(Boolean)).toHaveLength(3);
   const first = scenario.indexOf(true);
@@ -33,11 +33,11 @@ test('a sectioned mock draws each section and keeps the scenario set together, w
 
 test('a section that cannot be filled shows a warning on the mock', async ({ page }) => {
   const short = structuredClone(sample);
-  short.examBlueprint.questionCount = 8;
+  short.examBlueprint.questionCount = 10;
   short.examBlueprint.sections[1].count = 5; // only 3 Ember moss questions are available
   const file = path.join(tmpdir(), `sections-short-${test.info().project.name}-${test.info().repeatEachIndex}.json`);
   writeFileSync(file, JSON.stringify(short));
   await importPack(page, '/', file);
-  await walkMock(page, 6);
+  await walkMock(page, 8);
   await expect(page.locator('.banner.warn').first()).toContainText('Only 3 Ember moss questions available (the exam blueprint asks for 5)');
 });

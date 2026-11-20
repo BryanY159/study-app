@@ -6,6 +6,7 @@ const REASON_TEXT: Record<FlagReason, string> = {
   'explanation-wrong': 'The explanation seems wrong',
   unclear: 'The question is unclear',
   typo: 'Typo',
+  'office-hours': 'Ask at office hours',
   other: 'Other',
 };
 

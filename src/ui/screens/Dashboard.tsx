@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { missedIds, nodeStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW, WEAKEST_DRILLED, WEAKEST_SHOWN, weakestTopics } from '../../engine/progress';
+import { bankStats, missedIds, nodeStats, overallStats, recentSessions, topicStats, TOPIC_WINDOW, WEAKEST_DRILLED, WEAKEST_SHOWN, weakestTopics } from '../../engine/progress';
 import { useApp } from '../../state/AppProvider';
 import { CardsTile, useCardStats } from '../components/CardsTile';
 import { BackupReminder } from '../components/SyncExport';
@@ -44,6 +44,7 @@ export function Dashboard() {
       overall: overallStats(ix, relevant),
       topics: topicStats(ix, relevant),
       attempts: relevant,
+      bank: bankStats(ix, relevant),
       missed: [...missedIds(relevant)].filter((id) => ix.question.has(id)).length,
     };
   }, [ix, progress.attempts]);
@@ -105,6 +106,20 @@ export function Dashboard() {
             {weakestLabel} →
           </a>
         </div>
+      )}
+
+      {stats.bank.total > 0 && (
+        <section className="card spread" data-testid="bank-tile">
+          <div>
+            <h2 style={{ marginBottom: 4 }}>Instructor's study bank</h2>
+            <p data-testid="bank-progress">
+              {stats.bank.seen} / {stats.bank.total} worked through
+            </p>
+          </div>
+          <a className="btn primary" href="#/drill?filter=bank" data-testid="drill-bank">
+            Drill study bank
+          </a>
+        </section>
       )}
 
       <div className="grid-main">

@@ -40,6 +40,7 @@ export function DrillSetup({ route }: { route: Route }) {
     () => new Set(hideFlagged ? flags.flags.map((f) => f.questionId) : []),
     [hideFlagged, flags.flags],
   );
+  const hasBank = !!ix?.pack.questions.some((q) => q.origin === 'study-bank');
   const poolFor = (f: DrillFilter, ts: ReadonlySet<string>) => (ix ? drillPool(ix, attempts, { topicIds: ts, filter: f, count: 'all', excludeIds }) : []);
   const available = poolFor(filter, topics).length;
 
@@ -102,6 +103,7 @@ export function DrillSetup({ route }: { route: Route }) {
                 ['all', 'All in selected topics'],
                 ['unseen', 'Not seen yet'],
                 ['missed', 'Previously missed'],
+                ...(hasBank || filter === 'bank' ? ([['bank', 'Study bank only']] as const) : []),
               ] as const
             ).map(([f, label]) => (
               <label key={f} className="check">

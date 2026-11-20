@@ -32,9 +32,9 @@ describe('drill setup tree', () => {
     await screen.findByRole('heading', { name: 'Set up a drill' });
     expect(box('First season').checked).toBe(true);
     expect(screen.queryByRole('checkbox', { name: 'Glowroots' })).not.toBeInTheDocument();
-    // First season = Glowroots (5 questions) + Skyvines (4); Second season = Ember moss (3 confirmed, 1 unconfirmed).
-    expect(screen.getByLabelText('9 questions')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Start drill · 13 questions/ })).toBeInTheDocument();
+    // First season = Glowroots (6 questions) + Skyvines (6); Second season = Ember moss (3 confirmed, 1 unconfirmed).
+    expect(screen.getByLabelText('12 questions')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start drill · 16 questions/ })).toBeInTheDocument();
   });
 
   it('unticking a group clears everything below, and the start count follows', async () => {

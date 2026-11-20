@@ -35,12 +35,19 @@ A pack is one JSON file, validated by `PackSchema` and then by `checkPack`:
   (`draft`, `verified`, `flagged-fixed`, or `unconfirmed` with a `preflag` note).
 
 **Mock exam sections.** `examBlueprint.sections` is an optional list of
-`{ name, groupIds | moduleIds, count }` (exactly one of the two lists). Rules, all checked by `checkPack`:
+`{ name, groupIds | moduleIds | origins, count }` (exactly one of the three lists). Rules, all checked by `checkPack`:
 
 - the counts add up to `questionCount`;
 - every group or module ID exists, and a module is in at most one section;
-- modules in no section get a warning (a mock never includes them), and so does
-  `minModuleShare > 0`, which is ignored when sections are set.
+- modules in no section get a warning (a mock never includes them), unless every question they
+  have is claimed by an origin section; `minModuleShare > 0` also warns, and is ignored when
+  sections are set.
+
+An `origins` section (for example `{ name: "Study bank", origins: ["study-bank"], count: 25 }`)
+selects questions by their `origin`. A question counts toward **one** section only, and an
+origin section takes precedence over a group or module section (`sectionIndexOf` in
+`src/engine/sections.ts`, used by both the mock builder and the results scoring). So bank
+questions never fill a module section, even when their module is in one.
 
 With sections, `assembleMock` draws exactly each section's count from its own modules (and
 groups' modules), keeping scenario sets whole. Unconfirmed and excluded questions are left
@@ -278,6 +285,22 @@ works by allowlist, so it never names real content:
 - On a `v*` tag, the same job also uploads `dist/`, and a second job deploys it
   to GitHub Pages.
 
+## Study bank, five options and office hours (v2.3.0)
+
+- **Origin `study-bank`.** A question with `origin: "study-bank"` gets an "Instructor's study
+  bank" badge next to its topic chip (drill, mock, results review, flags). Home shows a tile with
+  "N / M worked through" (bank questions answered at least once, `bankStats`) and a button to
+  `#/drill?filter=bank`. Drill setup has a "Study bank only" filter, shown when the pack has bank
+  questions (`DrillFilter` `'bank'`).
+- **`note`.** An optional text on a question, shown as a notice above the options and explanations
+  wherever feedback is shown (drill, results review, flags). Meant for "Not found in lecture
+  sources (may be from lab)".
+- **Five options.** The schema already allowed 2–6 options; v2.3.0 makes sure every screen copes
+  with A–E: the drill, mock and results show option E, the keys A–E and 1–5 answer, and the key
+  hint follows the question's last option.
+- **Flag reason `office-hours`** ("Ask at office hours"). The Flags screen can export only the
+  flags with a chosen reason (`filterFlagsByReason`).
+
 ## `@study/pack` contract
 
 - `@study/pack`:
@@ -294,7 +317,10 @@ works by allowlist, so it never names real content:
   - since v2.0.0, the Leitner scheduler: `nextState`, `buildQueue`, `requeueAgain`,
     `deckCounts`, `dueDateFor`, `localDay`, `addDays`, and the box constants;
   - since v2.1.0, `PackIndex` has `group` and `groupOf`, and `assembleMock` follows
-    `examBlueprint.sections` when a pack has them (same results as before when it has none).
+    `examBlueprint.sections` when a pack has them (same results as before when it has none);
+  - since v2.3.0 (all optional or additive): `QUESTION_ORIGINS` and the origin `study-bank`, the
+    optional `note` on a question, `origins` on an exam section, and the flag/pre-flag reason
+    `office-hours` in `FLAG_REASONS`. `assembleMock` lets origin sections take precedence.
 - It ships TypeScript source (consumers use `tsx`/Vitest). Its only runtime
   dependency is `zod`, and there's deliberately no `prepare` script, so a git
   install doesn't pull in the app's dev tooling.

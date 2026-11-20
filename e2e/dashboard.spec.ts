@@ -72,7 +72,7 @@ test('Home: the weakest topic shows its path, and the progress tree opens level 
   const group = tree.getByRole('button', { name: /^First season/ });
   await expect(group).toHaveAttribute('aria-expanded', 'false');
   await expect(group).toBeVisible();
-  await expect(tree.getByTestId('tree-group').first()).toContainText(/\d+% · 3 of 9 seen/);
+  await expect(tree.getByTestId('tree-group').first()).toContainText(/\d+% · 3 of 12 seen/);
   await expect(tree.getByRole('button', { name: /^Glowroots/ })).toHaveCount(0);
 
   await group.click();

@@ -12,7 +12,7 @@ import { docCodec } from '../storage/sync';
 import { App } from './App';
 import { submitMock } from './screens/Mock';
 
-// Orrin sample pack: sections "First season" (group: Glowroots + Skyvines) 3 and "Ember moss" (gamma) 3.
+// Orrin sample pack: sections "First season" (group: Glowroots + Skyvines) 3, "Ember moss" (gamma) 3 and "Study bank" (origin) 2.
 const parsed = parsePack(structuredClone(fixture));
 if (!parsed.ok) throw new Error('fixture');
 const pack: Pack = parsed.pack;
@@ -67,7 +67,7 @@ describe('mock results with sections', () => {
   it('shows a score per section under the overall score and marks the weakest', async () => {
     await renderResults(IDS, ['q-alpha-0001', 'q-alpha-0002', 'q-gamma-0001']); // 2 / 3, then 1 / 3
     const rows = within(screen.getByTestId('section-scores')).getAllByTestId('section-row');
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent('First season: 2 / 3, 67%');
     expect(rows[1]).toHaveTextContent('Ember moss: 1 / 3, 33%');
     expect(rows[0]).not.toHaveTextContent('Weakest');
@@ -136,9 +136,10 @@ describe('storing section scores with the session', () => {
     expect(done.sessions[0].sectionScores).toEqual([
       { name: 'First season', correct: 0, total: 3 },
       { name: 'Ember moss', correct: 0, total: 3 },
+      { name: 'Study bank', correct: 0, total: 0 },
     ]);
     const back = docCodec.parse('progress', JSON.parse(JSON.stringify(done)));
-    expect(back.ok && (back.value as typeof done).sessions[0].sectionScores).toHaveLength(2);
+    expect(back.ok && (back.value as typeof done).sessions[0].sectionScores).toHaveLength(3);
   });
 
   it('a pack without sections saves no section scores', () => {

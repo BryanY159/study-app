@@ -98,6 +98,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .chip { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 99px; background: var(--chip); color: var(--text-2); }
 .chip.accent { background: var(--accent-tint); color: var(--accent); }
 .chip.practice { background: var(--practice-tint); color: var(--practice-ink); }
+.chip.bank { background: var(--accent-tint); color: var(--accent); border: 1px solid currentColor; }
 .chip.ok { background: var(--correct-chip); color: var(--correct-ink); }
 .chip.bad { background: var(--incorrect-chip); color: var(--incorrect-ink); }
 .chip.warn { background: var(--warn-tint); color: var(--warn-ink); }

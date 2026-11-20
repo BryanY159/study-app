@@ -20,6 +20,7 @@ export function DrillRun() {
   const viewing = drill?.viewing != null;
   const qid = drill?.questionIds[at];
   const q = qid ? ix?.question.get(qid) : undefined;
+  const lastKey = q?.options.at(-1)?.key ?? 'D';
   const chosen = qid ? drill?.answers[qid] : undefined;
   const flag = useFlag(q, 'drill');
   const phone = useBreakpoint() === 'phone';
@@ -196,7 +197,7 @@ export function DrillRun() {
             )}
           </div>
         )}
-        <p className="kbd-hint">Keys: A–D (or 1–4) to answer · Enter for next · ←/→ to move after answering · F to flag</p>
+        <p className="kbd-hint">Keys: A–{lastKey} (or 1–{q?.options.length ?? 4}) to answer · Enter for next · ←/→ to move after answering · F to flag</p>
       </main>
       {phone && (
         // Phone: Flag, Previous and Next stay reachable at the bottom of the screen.

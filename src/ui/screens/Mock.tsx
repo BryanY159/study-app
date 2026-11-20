@@ -152,6 +152,7 @@ export function MockRun() {
   const phone = useBreakpoint() === 'phone';
   const qid = m?.questionIds[m.current];
   const q = qid ? ix?.question.get(qid) : undefined;
+  const lastKey = q?.options.at(-1)?.key ?? 'D';
   const flag = useFlag(q, 'mock');
 
   const patch = useCallback(
@@ -359,7 +360,7 @@ export function MockRun() {
               </button>
             </div>
             <p className="small muted">
-              No feedback until you submit. Unanswered questions count as wrong.<span className="kbd-only"> Keys: A–D answer · ←/→ move · M mark · F flag</span>
+              No feedback until you submit. Unanswered questions count as wrong.<span className="kbd-only"> Keys: A–{lastKey} answer · ←/→ move · M mark · F flag</span>
             </p>
           </section>
           <aside className="card stack mock-grid-col">{grid}</aside>

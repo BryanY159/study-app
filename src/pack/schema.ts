@@ -45,7 +45,10 @@ export const SourceSchema = z.object({
   locator: nonEmpty,
 });
 
-export const FLAG_REASONS = ['answer-wrong', 'explanation-wrong', 'unclear', 'typo', 'other'] as const;
+export const FLAG_REASONS = ['answer-wrong', 'explanation-wrong', 'unclear', 'typo', 'office-hours', 'other'] as const;
+
+/** Where a question came from. "study-bank" = the instructor's study-question bank. */
+export const QUESTION_ORIGINS = ['generated', 'course-practice', 'study-bank'] as const;
 
 /** A known doubt shipped with the question (status "unconfirmed"), e.g. sources disagree. */
 export const PreflagSchema = z.object({
@@ -64,7 +67,9 @@ export const QuestionSchema = z
     options: z.array(OptionSchema).min(2).max(6),
     summary: z.string(),
     level: z.enum(['recall', 'application', 'clinical']),
-    origin: z.enum(['generated', 'course-practice']),
+    origin: z.enum(QUESTION_ORIGINS),
+    /** Optional notice shown above the explanations, e.g. "Not found in lecture sources (may be from lab)". */
+    note: nonEmpty.optional(),
     sources: z.array(SourceSchema).min(1, 'needs at least one source'),
     status: z.enum(['draft', 'verified', 'flagged-fixed', 'unconfirmed']),
     preflag: PreflagSchema.optional(),
@@ -159,11 +164,16 @@ export const GroupSchema = z.object({
   moduleIds: z.array(slug).min(1),
 });
 
-/** One part of a mock exam: draws exactly `count` questions from the groups or modules it names (one of the two lists). */
+/**
+ * One part of a mock exam: draws exactly `count` questions from the groups, modules or origins it
+ * names (exactly one of the three lists). A question counts toward one section only: an origin
+ * section takes precedence over a group or module section.
+ */
 export const ExamSectionSchema = z.object({
   name: nonEmpty,
   groupIds: z.array(slug).min(1).optional(),
   moduleIds: z.array(slug).min(1).optional(),
+  origins: z.array(z.enum(QUESTION_ORIGINS)).min(1).optional(),
   count: z.number().int().positive(),
 });
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 export const SAMPLE_PACK = path.resolve('test/fixtures/sample-pack.json');
 
 /** Import a pack file through History & data → Import pack…, the same way a user does. */
-export async function importPack(page: Page, url: string, file = SAMPLE_PACK, questions = 13) {
+export async function importPack(page: Page, url: string, file = SAMPLE_PACK, questions = 16) {
   await page.goto(url + '#/data');
   await page.getByTestId('pack-input').setInputFiles(file);
   await expect(page.getByTestId('data-message')).toContainText(`${questions} questions`);
